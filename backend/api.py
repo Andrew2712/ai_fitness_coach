@@ -328,3 +328,8 @@ def fitbit_status(user_id: str):
 @app.get("/fitbit/auth-url")
 def fitbit_auth_url():
     return {"url": get_auth_url()}
+
+@app.get("/env-test")
+def env_test():
+    import os
+    return {k: v for k, v in os.environ.items() if "FITBIT" in k or "DATA" in k or "MODEL" in k or "RAILWAY" in k}
