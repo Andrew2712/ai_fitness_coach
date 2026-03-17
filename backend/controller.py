@@ -28,38 +28,38 @@ FEATURE_PATH = os.path.join(MODEL_DIR, "features.json")
 # ==========================
 
 # Data
-from agents.data_agent import (
+from backend.agents.data_agent import (
     load_data,
     preprocess_data
 )
-from agents.daily_feature_agent import engineer_features
+from backend.agents.daily_feature_agent import engineer_features
 
-from agents.health_agent import compute_health
+from backend.agents.health_agent import compute_health
 
 # Session
-from agents.session_agent import detect_sessions
-from agents.session_feature_agent import build_session_features
-from agents.session_label_agent import label_session_fatigue
-from agents.session_ml_agent import train_session_model
+from backend.agents.session_agent import detect_sessions
+from backend.agents.session_feature_agent import build_session_features
+from backend.agents.session_label_agent import label_session_fatigue
+from backend.agents.session_ml_agent import train_session_model
 
-from agents.logger import log
+from backend.agents.logger import log
 
-from agents.fusion_agent import (
+from backend.agents.fusion_agent import (
     get_session_fatigue,
     fuse_fatigue
 )
 
 # Labels
-from agents.label_agent import label_fatigue
+from backend.agents.label_agent import label_fatigue
 
 # ML
-from agents.ml_agent import train_model
+from backend.agents.ml_agent import train_model
 
 # Inference
-from agents.inference_agent import predict_fatigue
+from backend.agents.inference_agent import predict_fatigue
 
 # Analysis
-from agents.analysis_agent import (
+from backend.agents.analysis_agent import (
     build_profile,
     analyze_trends,
     calculate_recovery_index,
@@ -71,14 +71,14 @@ from agents.analysis_agent import (
 )
 
 # Decision
-from agents.decision_agent import (
+from backend.agents.decision_agent import (
     generate_ai_goal,
     generate_ai_goal_plan,
     explain_goal
 )
 
 # Memory
-from agents.memory_agent import (
+from backend.agents.memory_agent import (
     load_memory,
     save_memory,
     init_user,
