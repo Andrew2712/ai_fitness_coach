@@ -1,5 +1,5 @@
 # agents/daily_feature_agent.py
-from agents.advanced_feature_agent import add_rolling_features
+from backend.agents.advanced_feature_agent import add_rolling_features
 import pandas as pd
 import numpy as np
 
