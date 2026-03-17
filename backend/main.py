@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from controller_logic import get_user_features, get_trends, get_fatigue_score, get_dashboard, get_recovery_plan, get_ai_goal
+from backend.controller_logic import get_user_features, get_trends, get_fatigue_score, get_dashboard, get_recovery_plan, get_ai_goal
+from backend.api import app
 
 app = FastAPI()
 
