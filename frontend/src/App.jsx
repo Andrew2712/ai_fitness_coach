@@ -61,7 +61,6 @@ function seeded(seed, n, lo, hi) {
   });
 }
 
-// ── SparkLine ──────────────────────────────────────────────────────────────────
 function SparkLine({ data, color, h = 40, filled = true }) {
   if (!data || data.length < 2) return (
     <svg viewBox="0 0 300 40" width="100%" height={h} preserveAspectRatio="none">
@@ -78,7 +77,6 @@ function SparkLine({ data, color, h = 40, filled = true }) {
   );
 }
 
-// ── SparkBar — FIXED ───────────────────────────────────────────────────────────
 function SparkBar({ data, color, h = 44, labels }) {
   if (!data || !data.length) return (
     <svg viewBox="0 0 260 44" width="100%" height={h + (labels ? 14 : 0)} preserveAspectRatio="none">
@@ -89,7 +87,6 @@ function SparkBar({ data, color, h = 44, labels }) {
   const validData = data.map(v => (typeof v === "number" && isFinite(v) ? v : 0));
   const mx = Math.max(...validData) || 1;
   const gap = 3;
-  // FIX: ensure bar width is always at least 2px
   const bw = Math.max(2, Math.floor((W - gap * (validData.length - 1)) / validData.length));
   const totalW = validData.length * (bw + gap) - gap;
   return (
@@ -112,7 +109,6 @@ function SparkBar({ data, color, h = 44, labels }) {
   );
 }
 
-// ── Ring ───────────────────────────────────────────────────────────────────────
 function Ring({ pct = 0, color, size = 72, stroke = 7, children }) {
   const r = (size - stroke) / 2, circ = 2 * Math.PI * r;
   const [anim, setAnim] = useState(0);
@@ -134,7 +130,6 @@ function Ring({ pct = 0, color, size = 72, stroke = 7, children }) {
   );
 }
 
-// ── StatusBar ──────────────────────────────────────────────────────────────────
 function StatusBar({ value }) {
   const segs = [
     { label: "Detraining",   color: "#94a3b8" },
@@ -155,7 +150,6 @@ function StatusBar({ value }) {
   );
 }
 
-// ── Primitives ─────────────────────────────────────────────────────────────────
 function Card({ children, style: extra, accent }) {
   return (
     <div style={{ background: T.card, borderRadius: 12, border: `1px solid ${T.border}`, borderTop: accent ? `3px solid ${accent}` : `1px solid ${T.border}`, padding: "16px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", ...extra }}>
@@ -179,7 +173,6 @@ function Pill({ children, color, bg }) {
   return <span style={{ display: "inline-block", background: bg || color + "18", color, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 600, fontFamily: "system-ui" }}>{children}</span>;
 }
 
-// ── FeedbackWidget ─────────────────────────────────────────────────────────────
 function FeedbackWidget({ userId, goalName, onDone }) {
   const [sel, setSel] = useState(null), [comment, setComment] = useState(""), [sent, setSent] = useState(false), [busy, setBusy] = useState(false);
   const opts = [{ r: 1, e: "✓", l: "Yes" }, { r: 2, e: "~", l: "Partially" }, { r: 3, e: "✗", l: "No" }];
@@ -205,7 +198,6 @@ function FeedbackWidget({ userId, goalName, onDone }) {
   );
 }
 
-// ── LoginPage ──────────────────────────────────────────────────────────────────
 function LoginPage({ onLogin }) {
   const [userId, setUserId] = useState(""), [users, setUsers] = useState([]), [busy, setBusy] = useState(false), [err, setErr] = useState("");
   useEffect(() => { fetch(`${API_URL}/users`).then(r => r.json()).then(d => setUsers(d.users || [])).catch(() => {}); }, []);
@@ -265,7 +257,6 @@ function LoginPage({ onLogin }) {
   );
 }
 
-// ── NavItem ────────────────────────────────────────────────────────────────────
 function NavItem({ icon, label, active, onClick }) {
   const [hover, setHover] = useState(false);
   return (
@@ -277,7 +268,6 @@ function NavItem({ icon, label, active, onClick }) {
   );
 }
 
-// ── MAIN APP ───────────────────────────────────────────────────────────────────
 export default function App() {
   const [user, setUser]           = useState(null);
   const [data, setData]           = useState(null);
@@ -293,7 +283,11 @@ export default function App() {
   const [animScore, setAnimScore] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // FIX 1: initialise refs with real data immediately (not null)
+  // ── NEW: Fitbit state ──
+  const [fitbitUser, setFitbitUser] = useState(null);
+  const [fitbitData, setFitbitData] = useState(null);
+  const [fitbitSyncing, setFitbitSyncing] = useState(false);
+
   const hrData     = useRef(seeded(12345, 24, 58, 140));
   const sleepData  = useRef(seeded(12346, 7, 4, 9));
   const stepsData  = useRef(seeded(12347, 7, 3000, 14000));
@@ -301,7 +295,6 @@ export default function App() {
   const hrvData    = useRef(seeded(12349, 14, 1, 4));
   const stressData = useRef(seeded(12350, 24, 10, 80));
 
-  // FIX 2: regenerate seeded data when user changes
   useEffect(() => {
     const seed = parseInt(user?.userId) || 12345;
     hrData.current     = seeded(seed,     24, 58,   140);
@@ -320,6 +313,21 @@ export default function App() {
     raf = requestAnimationFrame(go);
     return () => cancelAnimationFrame(raf);
   }, [data?.health]);
+
+  // ── NEW: Read fitbit_user from URL on load ──
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const fuid = params.get("fitbit_user");
+    if (fuid) {
+      setFitbitUser(fuid);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
+  // ── NEW: Auto-sync when fitbit connects ──
+  useEffect(() => {
+    if (fitbitUser) syncFitbit(fitbitUser);
+  }, [fitbitUser]);
 
   const fetchReport = async uid => {
     setErr(""); setData(null); setTs(null); setRecovery(null); setGoal(null); setLoading(true);
@@ -347,6 +355,19 @@ export default function App() {
     finally { setLoadingGoal(false); setTab("goal"); }
   };
 
+  // ── NEW: Fitbit sync function ──
+  const syncFitbit = async (fuid) => {
+    setFitbitSyncing(true);
+    try {
+      const r = await fetch(`${API_URL}/fitbit/sync/${fuid}`);
+      if (r.ok) {
+        const d = await r.json();
+        setFitbitData(d.data);
+      }
+    } catch {}
+    finally { setFitbitSyncing(false); }
+  };
+
   const handleLogin  = u => { setUser(u); fetchReport(u.userId); };
   const handleLogout = () => { setUser(null); setData(null); setTs(null); setRecovery(null); setGoal(null); };
 
@@ -360,7 +381,6 @@ export default function App() {
   const hl       = healthLabel(health);
   const dayL     = ["M","T","W","T","F","S","S"];
 
-  // FIX 3: always fall back to populated ref arrays — never empty
   const hrChart     = ts?.hr?.length       ? ts.hr       : hrData.current;
   const sleepChart  = ts?.sleep?.length    ? ts.sleep    : sleepData.current;
   const stepsChart  = ts?.steps?.length    ? ts.steps    : stepsData.current;
@@ -403,7 +423,6 @@ export default function App() {
       `}</style>
 
       <div style={{ display: "flex", minHeight: "100vh" }}>
-
         {/* ── Sidebar ── */}
         <div style={{ width: sidebarOpen ? 220 : 64, background: T.sidebar, flexShrink: 0, display: "flex", flexDirection: "column", transition: "width 0.2s ease", position: "sticky", top: 0, height: "100vh", overflow: "hidden" }}>
           <div style={{ padding: "20px 16px 16px", borderBottom: "1px solid #ffffff12" }}>
@@ -424,6 +443,7 @@ export default function App() {
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0" }}>User {user.userId}</div>
                   {ts && <div style={{ fontSize: 10, color: T.green }}>● Live data</div>}
+                  {fitbitUser && <div style={{ fontSize: 10, color: T.cyan }}>⌚ Fitbit: {fitbitUser}</div>}
                 </div>
               </div>
             </div>
@@ -451,6 +471,12 @@ export default function App() {
               <div style={{ fontSize: 18, fontWeight: 700, color: T.text, fontFamily: "'Nunito Sans', system-ui" }}>{tabTitle}</div>
               <div style={{ fontSize: 12, color: T.muted }}>User {user.userId} • {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</div>
             </div>
+            {/* ── NEW: Fitbit connect button in header ── */}
+            <button onClick={() => window.open(`${API_URL}/fitbit/login`, "_self")}
+              style={{ background: fitbitUser ? T.greenLight : T.blueLight, border: `1px solid ${fitbitUser ? T.green : T.blue}`, borderRadius: 8, padding: "6px 14px", color: fitbitUser ? T.green : T.blue, fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+              <span>⌚</span>
+              <span>{fitbitUser ? `Fitbit: ${fitbitUser}` : "Connect Fitbit"}</span>
+            </button>
             {err && <div style={{ background: T.redLight, color: T.red, borderRadius: 8, padding: "6px 12px", fontSize: 12 }}>⚠ {err}</div>}
           </div>
 
@@ -464,9 +490,9 @@ export default function App() {
 
             {data && !loading && (
               <>
-                {/* ══ HOME ══ */}
                 {tab === "home" && (
                   <div className="fade">
+                    {/* Summary cards */}
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
                       <Card accent={hc}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -507,6 +533,57 @@ export default function App() {
                       </Card>
                     </div>
 
+                    {/* ── NEW: Fitbit Live Card ── */}
+                    <SectionLabel>Fitbit Live</SectionLabel>
+                    <Card accent={fitbitUser ? T.green : T.blue} style={{ marginBottom: 24 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+                        <div style={{ flex: 1 }}>
+                          <MetricLabel>FITBIT TODAY</MetricLabel>
+                          {fitbitUser ? (
+                            <div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                                <div style={{ width: 8, height: 8, borderRadius: "50%", background: T.green }} />
+                                <BigNum color={T.green} size={16}>Connected — {fitbitUser}</BigNum>
+                              </div>
+                              {fitbitData ? (
+                                <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
+                                  {[
+                                    { label: "Steps",    val: fitbitData.TotalSteps?.toLocaleString() ?? "—", icon: "👟" },
+                                    { label: "Calories", val: fitbitData.Calories?.toLocaleString() ?? "—",   icon: "🔥" },
+                                    { label: "Sleep",    val: fitbitData.TotalMinutesAsleep ? `${Math.floor(fitbitData.TotalMinutesAsleep/60)}h ${fitbitData.TotalMinutesAsleep%60}m` : "—", icon: "😴" },
+                                    { label: "Avg HR",   val: fitbitData.AvgHeartRate ? `${Math.round(fitbitData.AvgHeartRate)} bpm` : "—", icon: "❤️" },
+                                  ].map(m => (
+                                    <div key={m.label} style={{ background: T.bg, borderRadius: 8, padding: "10px 12px" }}>
+                                      <div style={{ fontSize: 16, marginBottom: 4 }}>{m.icon}</div>
+                                      <div style={{ fontSize: 16, fontWeight: 700, color: T.text }}>{m.val}</div>
+                                      <div style={{ fontSize: 10, color: T.muted }}>{m.label}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <SubText>{fitbitSyncing ? "Syncing…" : "No data synced yet"}</SubText>
+                              )}
+                            </div>
+                          ) : (
+                            <SubText>Connect your Fitbit device for real-time today's data</SubText>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                          {fitbitUser && (
+                            <button onClick={() => syncFitbit(fitbitUser)}
+                              style={{ background: T.greenLight, border: `1px solid ${T.green}`, borderRadius: 8, padding: "8px 16px", color: T.green, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                              {fitbitSyncing ? "Syncing…" : "🔄 Sync"}
+                            </button>
+                          )}
+                          <button onClick={() => window.open(`${API_URL}/fitbit/login`, "_self")}
+                            style={{ background: fitbitUser ? T.bg : T.blue, border: `1px solid ${fitbitUser ? T.border : T.blue}`, borderRadius: 8, padding: "8px 16px", color: fitbitUser ? T.muted : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                            {fitbitUser ? "Reconnect" : "🔗 Connect Fitbit"}
+                          </button>
+                        </div>
+                      </div>
+                    </Card>
+
+                    {/* In Focus */}
                     <SectionLabel>In Focus</SectionLabel>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
                       <Card>
@@ -552,6 +629,7 @@ export default function App() {
                       </Card>
                     </div>
 
+                    {/* Temporary Items */}
                     <SectionLabel>Temporary Items</SectionLabel>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
                       <Card style={{ borderLeft: `3px solid ${T.blue}` }}>
@@ -578,23 +656,17 @@ export default function App() {
                       </Card>
                     </div>
 
+                    {/* At a Glance preview */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                       <SectionLabel>At a Glance</SectionLabel>
                       <button onClick={() => setTab("glance")} style={{ fontSize: 13, color: T.blue, background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>See All</button>
                     </div>
-                    {/* FIX 4: minHeight on every chart wrapper */}
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
                       {[
-                        { label: "Heart Rate",  val: `${data.profile?.avg_hr ?? 72}`,  unit: "bpm",
-                          chart: <SparkLine data={hrChart} color={T.red} h={36} /> },
-                        { label: "Sleep Score",
-                          val: `${data.profile?.avg_sleep ? Math.floor(data.profile.avg_sleep / 60) : 6}h ${data.profile?.avg_sleep ? Math.round(data.profile.avg_sleep % 60) : 24}m`,
-                          unit: "Duration",
-                          chart: <SparkBar data={sleepChart.slice(0, 7)} color={T.purple} h={36} /> },
-                        { label: "HRV Status",  val: latestHrv7d ? latestHrv7d.toFixed(0) + " ms" : "—", unit: "7d Avg",
-                          chart: <SparkLine data={hrvChart} color={hrvColor} h={36} /> },
-                        { label: "Daily Steps", val: (data.profile?.avg_steps ?? 7500).toLocaleString(), unit: "avg",
-                          chart: <SparkBar data={stepsChart.slice(0, 7)} color={T.blue} h={36} /> },
+                        { label: "Heart Rate",  val: `${data.profile?.avg_hr ?? 72}`,  unit: "bpm",      chart: <SparkLine data={hrChart} color={T.red} h={36} /> },
+                        { label: "Sleep Score", val: `${data.profile?.avg_sleep ? Math.floor(data.profile.avg_sleep / 60) : 6}h ${data.profile?.avg_sleep ? Math.round(data.profile.avg_sleep % 60) : 24}m`, unit: "Duration", chart: <SparkBar data={sleepChart.slice(0, 7)} color={T.purple} h={36} /> },
+                        { label: "HRV Status",  val: latestHrv7d ? latestHrv7d.toFixed(0) + " ms" : "—", unit: "7d Avg",   chart: <SparkLine data={hrvChart} color={hrvColor} h={36} /> },
+                        { label: "Daily Steps", val: (data.profile?.avg_steps ?? 7500).toLocaleString(),  unit: "avg",      chart: <SparkBar data={stepsChart.slice(0, 7)} color={T.blue} h={36} /> },
                       ].map(m => (
                         <Card key={m.label}>
                           <MetricLabel>{m.label}</MetricLabel>
@@ -605,6 +677,7 @@ export default function App() {
                       ))}
                     </div>
 
+                    {/* Training Plans */}
                     <SectionLabel>Training Plans</SectionLabel>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                       <button onClick={fetchRecovery} style={{ background: T.card, border: `1px solid ${T.blue}44`, borderRadius: 12, padding: 20, color: T.blue, textAlign: "left", cursor: "pointer", transition: "box-shadow 0.15s" }}
@@ -655,7 +728,6 @@ export default function App() {
                         <MetricLabel>😴 Sleep</MetricLabel>
                         <BigNum size={24}>{data.profile?.avg_sleep ? `${Math.floor(data.profile.avg_sleep / 60)}h ${Math.round(data.profile.avg_sleep % 60)}m` : "6h 24m"}</BigNum>
                         <SubText>Duration avg</SubText>
-                        {/* FIX 5: minHeight on all glance chart wrappers */}
                         <div style={{ marginTop: 10, minHeight: 62 }}><SparkBar data={sleepChart.slice(0, 7)} color={T.purple} h={48} labels={chartLabels} /></div>
                       </Card>
                       <Card>
@@ -706,7 +778,6 @@ export default function App() {
                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
                           <BigNum size={26}>{(data.profile?.avg_cal ?? 2200).toLocaleString()} <span style={{ fontSize: 14, fontWeight: 400, color: T.muted }}>kcal avg</span></BigNum>
                         </div>
-                        {/* FIX 6: use calChart (populated) and add minHeight */}
                         <div style={{ minHeight: 70 }}><SparkBar data={calChart.slice(0, 7)} color={T.orange} h={56} labels={chartLabels} /></div>
                       </Card>
                       {data.trends && (
