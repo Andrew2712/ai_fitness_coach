@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 
-const API_URL = "https://potential-space-enigma-6996prj45g97cj7w-8000.app.github.dev";
+const API_URL = "https://aifitnesscoach-production-373b.up.railway.app";
 
 const T = {
   bg:        "#f4f5f7",
