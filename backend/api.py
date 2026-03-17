@@ -286,3 +286,11 @@ def submit_feedback(body: FeedbackRequest):
     
 
     
+@app.get("/debug")
+def debug():
+    import os
+    return {
+        "data_dir": os.environ.get("DATA_DIR", "NOT SET"),
+        "app_contents": os.listdir("/app"),
+        "data_contents": os.listdir("/app/data") if os.path.exists("/app/data") else "NOT FOUND",
+    }
