@@ -11,7 +11,7 @@ import shutil
 # ==========================
 
 BASE_DIR  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR  = os.environ.get("DATA_DIR",  os.path.join(BASE_DIR, "data"))
+DATA_DIR  = os.environ.get("DATA_DIR",  os.path.join(os.path.dirname(os.path.abspath(__file__)), "data"))
 MODEL_DIR = os.environ.get("MODEL_DIR", os.path.join(BASE_DIR, "models"))
 
 ACTIVITY = os.path.join(DATA_DIR, "dailyActivity_merged.csv")
