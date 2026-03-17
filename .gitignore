@@ -4,3 +4,4 @@ __pycache__/
 .env
 data/fitbit_tokens.json
 backend/memory.json
+data/heartrate_seconds_merged.csv
