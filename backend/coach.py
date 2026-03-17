@@ -3,7 +3,7 @@ import joblib
 import json
 import numpy as np
 
-from backend.agents.analysis_agent import (
+from agents.analysis_agent import (
     build_profile,
     analyze_trends,
     improved_recovery_rate,
@@ -15,13 +15,13 @@ from backend.agents.analysis_agent import (
     generate_recovery_plan
 )
 
-from backend.agents.decision_agent import (
+from agents.decision_agent import (
     generate_ai_goal,
     generate_ai_goal_plan,
     explain_goal
 )
 
-from backend.agents.memory_agent import (
+from agents.memory_agent import (
     load_memory,
     save_memory,
     init_user,
