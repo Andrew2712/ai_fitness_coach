@@ -1,0 +1,97 @@
+{
+  "best_model": "KNN",
+  "best_accuracy": 96.59,
+  "best_f1": 96.59,
+  "all_results": [
+    {
+      "model": "KNN",
+      "cv_accuracy": 96.09,
+      "cv_std": 0.44,
+      "test_accuracy": 96.59,
+      "f1_score": 96.59,
+      "precision": 96.67,
+      "recall": 96.59
+    },
+    {
+      "model": "SVM (RBF)",
+      "cv_accuracy": 95.26,
+      "cv_std": 0.33,
+      "test_accuracy": 96.09,
+      "f1_score": 96.09,
+      "precision": 96.11,
+      "recall": 96.09
+    },
+    {
+      "model": "LightGBM",
+      "cv_accuracy": 95.16,
+      "cv_std": 0.42,
+      "test_accuracy": 94.98,
+      "f1_score": 95.0,
+      "precision": 95.02,
+      "recall": 94.98
+    },
+    {
+      "model": "Neural Network (MLP)",
+      "cv_accuracy": 95.13,
+      "cv_std": 0.63,
+      "test_accuracy": 94.98,
+      "f1_score": 94.98,
+      "precision": 95.02,
+      "recall": 94.98
+    },
+    {
+      "model": "Gradient Boosting",
+      "cv_accuracy": 95.13,
+      "cv_std": 1.09,
+      "test_accuracy": 94.68,
+      "f1_score": 94.7,
+      "precision": 94.71,
+      "recall": 94.68
+    },
+    {
+      "model": "Random Forest (current)",
+      "cv_accuracy": 95.06,
+      "cv_std": 1.0,
+      "test_accuracy": 94.58,
+      "f1_score": 94.61,
+      "precision": 94.65,
+      "recall": 94.58
+    },
+    {
+      "model": "XGBoost",
+      "cv_accuracy": 95.16,
+      "cv_std": 0.68,
+      "test_accuracy": 94.58,
+      "f1_score": 94.6,
+      "precision": 94.62,
+      "recall": 94.58
+    },
+    {
+      "model": "Decision Tree",
+      "cv_accuracy": 91.24,
+      "cv_std": 1.49,
+      "test_accuracy": 90.27,
+      "f1_score": 90.27,
+      "precision": 90.29,
+      "recall": 90.27
+    },
+    {
+      "model": "Logistic Regression",
+      "cv_accuracy": 88.23,
+      "cv_std": 1.04,
+      "test_accuracy": 87.86,
+      "f1_score": 87.78,
+      "precision": 87.76,
+      "recall": 87.86
+    },
+    {
+      "model": "AdaBoost",
+      "cv_accuracy": 77.67,
+      "cv_std": 6.59,
+      "test_accuracy": 80.44,
+      "f1_score": 80.33,
+      "precision": 85.13,
+      "recall": 80.44
+    }
+  ]
+}

@@ -1,0 +1,868 @@
+import pandas as pd
+import joblib
+import json
+import numpy as np
+
+from agents.analysis_agent import (
+    build_profile,
+    analyze_trends,
+    improved_recovery_rate,
+    calculate_recovery_index,
+    calculate_progress_score,
+    predict_risk,
+    burnout_alert,
+    weekly_forecast,
+    generate_recovery_plan
+)
+
+from agents.decision_agent import (
+    generate_ai_goal,
+    generate_ai_goal_plan,
+    explain_goal
+)
+
+from agents.memory_agent import (
+    load_memory,
+    save_memory,
+    init_user,
+    update_session,
+    evaluate_agent,
+    analyze_feedback,
+    collect_feedback
+)
+
+
+
+# ==========================
+# CONFIG
+# ==========================
+
+DATA_PATH = "data/final_fitness_data.csv"
+MODEL_PATH = "models/best_model.pkl"
+FEATURE_PATH = "models/features.json"
+MEMORY_PATH = "Agent-Memory/memory.json"
+
+
+# ==========================
+# LOAD SYSTEM
+# ==========================
+
+print("\n🤖 AI Fitness Coach Loaded...\n")
+
+try:
+    df = pd.read_csv(DATA_PATH, parse_dates=["Date"])
+    from agents.inference_agent import predict_fatigue
+
+    with open(FEATURE_PATH, "r") as f:
+        FEATURES = json.load(f)
+
+except Exception as e:
+    print("❌ System Load Error:", e)
+    exit()
+
+print("✅ Loaded Features:", FEATURES)
+
+
+# ==========================
+# FEATURE ENGINEERING
+# ==========================
+
+def engineer_features(data):
+
+    data = data.copy()
+
+    data["TrainingLoad"] = data["TotalSteps"] * data["AvgHeartRate"]
+
+    data["SleepEfficiency"] = (
+        data["TotalMinutesAsleep"] /
+        data["TotalTimeInBed"].replace(0, np.nan)
+    )
+
+    data = data.sort_values("Date")
+
+    data["WeeklyLoad"] = data["TrainingLoad"].rolling(7).mean()
+    data["WeeklySleep"] = data["TotalMinutesAsleep"].rolling(7).mean()
+    data["StepConsistency"] = data["TotalSteps"].rolling(7).std()
+
+    data = data.bfill().ffill()
+
+    return data
+
+'''
+# ==========================
+# RECOVERY RATE
+# ==========================
+
+def improved_recovery_rate(data):
+
+    hr = data["AvgHeartRate"].rolling(3).mean()
+
+    if len(hr) < 14:
+        return 5.0
+
+    recent = hr.tail(7).mean()
+    previous = hr.iloc[-14:-7].mean()
+
+    if pd.isna(recent) or pd.isna(previous):
+        return 5.0
+
+    change = ((recent - previous) / previous) * 100
+
+    return round(change, 2)
+
+
+# ==========================
+# PROFILE
+# ==========================
+'''
+'''
+def build_profile(data):
+
+    return {
+        "avg_steps": int(data["TotalSteps"].mean()),
+        "max_steps": int(data["TotalSteps"].max()),
+        "avg_sleep": int(data["TotalMinutesAsleep"].mean()),
+        "sleep_std": round(data["TotalMinutesAsleep"].std(), 2),
+        "avg_hr": int(data["AvgHeartRate"].mean()),
+        "avg_cal": int(data["Calories"].mean()),
+        "recovery_rate": improved_recovery_rate(data)
+    }
+
+
+# ==========================
+# TRENDS
+# ==========================
+'''
+'''
+def analyze_trends(data):
+
+    recent = data.tail(7)
+
+    return {
+        "step_trend": round(recent["TotalSteps"].diff().mean(), 2),
+        "sleep_trend": round(recent["TotalMinutesAsleep"].diff().mean(), 2),
+        "hr_trend": round(recent["AvgHeartRate"].diff().mean(), 2)
+    }
+'''
+'''
+# ==========================
+# MEMORY
+# ==========================
+'''
+'''
+def load_memory():
+
+    try:
+        with open(MEMORY_PATH, "r") as f:
+            return json.load(f)
+    except:
+        return {}
+
+
+def save_memory(memory):
+
+    with open(MEMORY_PATH, "w") as f:
+        json.dump(memory, f, indent=4)
+'''
+'''
+# ==========================
+# NEW: PROGRESS SCORE
+# ==========================
+
+def calculate_progress_score(profile, trends, fatigue):
+
+    score = 50
+
+    if profile["avg_steps"] > 8000:
+        score += 10
+
+    if profile["avg_sleep"] > 400:
+        score += 10
+
+    if profile["recovery_rate"] > 0:
+        score += 10
+
+    if fatigue == 2:
+        score -= 15
+    elif fatigue == 1:
+        score -= 7
+
+    if trends["hr_trend"] > 2:
+        score -= 5
+
+    return max(0, min(score, 100))
+
+
+# ==========================
+# NEW: RISK PREDICTION
+# ==========================
+
+def predict_risk(profile, fatigue, recovery_index):
+
+    risk = "LOW"
+
+    if fatigue == 2 and recovery_index <= 2:
+        risk = "HIGH"
+
+    elif fatigue == 1 and recovery_index <= 3:
+        risk = "MEDIUM"
+
+    return risk
+
+
+# ==========================
+# NEW: BURNOUT ALERT
+# ==========================
+
+def burnout_alert(profile, trends, fatigue):
+
+    if (
+        fatigue == 2 and
+        profile["avg_sleep"] < 360 and
+        trends["hr_trend"] > 2
+    ):
+        return "⚠️ HIGH BURNOUT RISK"
+
+    if fatigue == 2:
+        return "⚠️ MODERATE BURNOUT RISK"
+
+    return "✅ LOW BURNOUT RISK"
+
+
+# ==========================
+# NEW: WEEKLY FORECAST
+# ==========================
+
+def weekly_forecast(trends, fatigue):
+
+    if fatigue == 2:
+        return "Next week: Focus on recovery and light activity."
+
+    if trends["step_trend"] > 500:
+        return "Next week: Performance likely to improve."
+
+    if trends["sleep_trend"] < -10:
+        return "Next week: Risk of fatigue if sleep declines."
+
+    return "Next week: Stable performance expected."
+'''
+
+'''
+# ==========================
+# RECOVERY INDEX
+# ==========================
+'''
+'''
+def calculate_recovery_index(profile, trends):
+
+    score = 0
+
+    if profile["avg_sleep"] > 420:
+        score += 2
+    elif profile["avg_sleep"] > 300:
+        score += 1
+
+    if profile["recovery_rate"] > 0:
+        score += 2
+    elif profile["recovery_rate"] > -3:
+        score += 1
+
+    if trends["hr_trend"] <= 0:
+        score += 1
+
+    return min(score, 5)
+'''
+'''
+# ==========================
+# RECOVERY PLAN
+# ==========================
+
+def generate_recovery_plan(fatigue, recovery_index):
+
+    days = 3 + (5 - recovery_index)
+
+    if fatigue == 2:
+        days += 3
+    elif fatigue == 1:
+        days += 1
+
+    days = min(days, 10)
+
+    plan = []
+
+    for i in range(1, days + 1):
+
+        if i <= 2:
+            plan.append(f"Day {i}: Full Rest + Sleep + Hydration")
+
+        elif i < days:
+            plan.append(f"Day {i}: Light Activity (20–30 min)")
+
+        else:
+            plan.append(f"Day {i}: Return to Training")
+
+    return plan
+'''
+
+
+'''
+# ==========================
+# AI GOAL ENGINE (AGENTIC)
+# ==========================
+'''
+'''
+def generate_ai_goal(profile, trends, fatigue, memory=None, uid=None):
+
+    # ==========================
+    # 1️⃣ MEMORY & FEEDBACK LAYER
+    # ==========================
+
+    if memory and uid in memory:
+
+        user_mem = memory.get(uid, {})
+
+        goals = user_mem.get("goals", [])
+        progress = user_mem.get("progress", [])
+
+        # ----------------------------------
+        # A. FEEDBACK PATTERN CHECK
+        # ----------------------------------
+
+        if len(goals) >= 2:
+
+            bad_weeks = 0
+
+            for g in goals[-2:]:
+                if g.get("feedback") == "not_followed":
+                    bad_weeks += 1
+
+            # Two bad weeks in a row → simplify
+            if bad_weeks >= 2:
+
+                return {
+                    "goal": "Easy Reset Plan",
+                    "focus": "Simplify routine",
+                    "reason": "Repeated low adherence",
+                    "duration": "2 weeks"
+                }
+
+
+        # ----------------------------------
+        # B. PERFORMANCE DECLINE CHECK
+        # ----------------------------------
+
+        if len(progress) >= 3:
+
+            if (
+                progress[-1] < progress[-2] and
+                progress[-2] < progress[-3]
+            ):
+
+                return {
+                    "goal": "System Reset",
+                    "focus": "Rebuild habits and motivation",
+                    "reason": "Consistent performance decline",
+                    "duration": "3 weeks"
+                }
+
+
+    # ==========================
+    # 2️⃣ HEALTH ANALYSIS LAYER
+    # ==========================
+
+    avg_steps = profile.get("avg_steps", 0)
+    avg_sleep = profile.get("avg_sleep", 0)
+    hr = profile.get("avg_hr", 0)
+    recovery = profile.get("recovery_rate", 0)
+
+    step_trend = trends.get("step_trend", 0)
+    sleep_trend = trends.get("sleep_trend", 0)
+    hr_trend = trends.get("hr_trend", 0)
+
+
+    # ==========================
+    # 3️⃣ DECISION LOGIC
+    # ==========================
+
+
+    # 🔴 High Fatigue
+    if fatigue == 2:
+
+        if avg_sleep < 380 or sleep_trend < 0:
+
+            return {
+                "goal": "Deep Recovery Phase",
+                "focus": "Restore energy and sleep quality",
+                "reason": "High fatigue with poor recovery",
+                "duration": "4–6 weeks"
+            }
+
+        else:
+
+            return {
+                "goal": "Active Recovery",
+                "focus": "Reduce training load safely",
+                "reason": "High fatigue with decent habits",
+                "duration": "3–4 weeks"
+            }
+
+
+    # 🔴 Severe Recovery Issue
+    if (
+        avg_sleep < 250 or
+        (sleep_trend < -15 and hr_trend > 5) or
+        recovery < -5
+    ):
+
+        return {
+            "goal": "Recovery & Stress Reset",
+            "focus": "Fix sleep and reduce heart strain",
+            "reason": "Severe recovery imbalance",
+            "duration": "6 weeks"
+        }
+
+
+    # 🟡 Low Activity
+    if avg_steps < 5000:
+
+        return {
+            "goal": "Build Activity Habit",
+            "focus": "Increase daily movement",
+            "reason": "Low physical activity",
+            "duration": "8 weeks"
+        }
+
+
+    # 🟡 High Heart Rate
+    if hr > 85 and hr_trend > 3:
+
+        return {
+            "goal": "Improve Cardio Fitness",
+            "focus": "Lower resting heart rate",
+            "reason": "Elevated heart rate",
+            "duration": "6 weeks"
+        }
+
+
+    # 🟢 Good Condition
+    if (
+        avg_steps > 8000 and
+        avg_sleep > 400 and
+        fatigue == 0 and
+        recovery > 0
+    ):
+
+        return {
+            "goal": "Fat Loss & Conditioning",
+            "focus": "Burn fat safely",
+            "reason": "Strong activity and recovery",
+            "duration": "10 weeks"
+        }
+
+
+    # 🟢 Rapid Improvement
+    if step_trend > 800 and fatigue == 0:
+
+        return {
+            "goal": "Performance Boost",
+            "focus": "Increase endurance",
+            "reason": "Rapid improvement",
+            "duration": "8 weeks"
+        }
+
+
+    # ⚪ Default
+    return {
+        "goal": "Balanced Lifestyle",
+        "focus": "Maintain sustainable habits",
+        "reason": "Stable workload and recovery",
+        "duration": "4 weeks"
+    }
+'''
+'''
+# ==========================
+# GOAL PLAN
+# ==========================
+'''
+'''
+def generate_ai_goal_plan(ai_goal):
+
+    goal = ai_goal["goal"]
+
+    if "Recovery" in goal:
+
+        return [
+            "Sleep 8+ hours",
+            "2 rest days/week",
+            "Light walks",
+            "Breathing exercises",
+            "Hydration 3L/day"
+        ]
+
+    elif "Activity" in goal:
+
+        return [
+            "7K → 10K steps",
+            "Morning walks",
+            "3x cardio/week",
+            "Stretch daily",
+            "Weekly challenge"
+        ]
+
+    elif "Cardio" in goal:
+
+        return [
+            "Jog 3x/week",
+            "Intervals 1x/week",
+            "Zone-2 training",
+            "Cycling/swim",
+            "Long walk"
+        ]
+
+    elif "Fat Loss" in goal:
+
+        return [
+            "10K steps/day",
+            "Track calories",
+            "Strength 3x/week",
+            "High protein",
+            "No sugary drinks"
+        ]
+
+    elif "Performance" in goal:
+
+        return [
+            "HIIT 2x/week",
+            "Tempo runs",
+            "Strength",
+            "Mobility",
+            "Sleep 8h"
+        ]
+
+    else:
+
+        return [
+            "Walk daily",
+            "Eat balanced",
+            "Sleep well",
+            "Stretch",
+            "Review weekly"
+        ]
+'''
+'''
+# ==========================
+# GOAL EXPLANATION
+# ==========================
+'''
+'''
+def explain_goal(profile, trends, fatigue_text, recovery, goal_data):
+
+    reasons = []
+
+    if profile["avg_steps"] >= 7000:
+        reasons.append(f"Your average steps ({profile['avg_steps']}) show good activity.")
+    else:
+        reasons.append(f"Your average steps ({profile['avg_steps']}) are low.")
+
+    if profile["avg_sleep"] >= 420:
+        reasons.append(f"Your sleep ({profile['avg_sleep']} min) is healthy.")
+    else:
+        reasons.append(f"Your sleep ({profile['avg_sleep']} min) needs improvement.")
+
+    if trends["hr_trend"] < 0:
+        reasons.append("Your heart rate trend is improving.")
+    else:
+        reasons.append("Your heart rate trend shows stress.")
+
+    reasons.append(f"Your fatigue level is {fatigue_text.lower()}.")
+    reasons.append(f"Your recovery rate is {recovery}.")
+
+
+    print("\n🤖 AI GOAL EXPLANATION\n")
+
+    print(f"I selected \"{goal_data['goal']}\" because:\n")
+
+    for r in reasons:
+        print("•", r)
+
+    print("\nThis matches your current health pattern.\n")
+'''
+'''
+# ==========================
+# SELF EVALUATION
+# ==========================
+'''
+'''
+def evaluate_agent(memory, uid):
+
+    history = memory[uid]["progress"]
+
+    if len(history) < 3:
+        return "Not enough data yet."
+
+    last = history[-1]
+    prev = history[-3]
+
+    if last > prev:
+        return "User is improving. Current strategy is working."
+
+    elif last < prev:
+        return "User is declining. Need to adjust strategy."
+
+    else:
+        return "User is stable. Maintain approach."
+
+'''
+'''
+# ==========================
+# USER FEEDBACK
+# ==========================
+
+def collect_feedback():
+
+    print("\n📝 FEEDBACK")
+    print("Did you follow the plan this week?")
+    print("1 → Yes")
+    print("2 → Partially")
+    print("3 → No")
+
+    choice = input("Choose: ")
+
+    if choice == "1":
+        return "followed"
+    elif choice == "2":
+        return "partial"
+    elif choice == "3":
+        return "not_followed"
+    else:
+        return "unknown"
+'''
+'''
+# ==========================
+# FEEDBACK ANALYSIS
+# ==========================
+'''
+'''
+def analyze_feedback(memory, uid):
+
+    history = memory[uid]["goals"]
+
+    if len(history) < 2:
+        return "Not enough feedback yet."
+
+    last = history[-1]
+    prev = history[-2]
+
+    if last["feedback"] == "followed" and last["progress"] > prev["progress"]:
+        return "Plan is effective. Continue."
+
+    if last["feedback"] == "not_followed":
+        return "Low adherence. Simplify goals."
+
+    if last["progress"] < prev["progress"]:
+        return "Performance declined. Adjust strategy."
+
+    return "Monitor and adapt."
+'''
+
+# ==========================
+# CLI
+# ==========================
+
+def run_cli():
+
+    users = df["Id"].unique()
+
+    print("Available Users:")
+    print(users)
+
+    try:
+        user_id = int(input("\nEnter User ID: "))
+    except:
+        print("❌ Invalid ID")
+        return
+
+
+    # ==========================
+    # LOAD USER DATA
+    # ==========================
+
+    user_data = df[df["Id"] == user_id]
+
+    if user_data.empty:
+        print("❌ No data found!")
+        return
+
+
+    # ==========================
+    # LOAD + INIT MEMORY
+    # ==========================
+
+    memory = load_memory()
+    uid = str(user_id)
+
+    memory = init_user(memory, uid)
+
+
+    # ==========================
+    # ANALYZE USER
+    # ==========================
+
+    user_data = engineer_features(user_data)
+
+    profile = build_profile(user_data)
+    trends = analyze_trends(user_data)
+
+    latest = user_data[FEATURES].iloc[-1].to_dict()
+
+    fatigue = predict_fatigue(latest)
+
+    recovery_index = calculate_recovery_index(profile, trends)
+
+    progress = calculate_progress_score(profile, trends, fatigue)
+
+    risk = predict_risk(profile, fatigue, recovery_index)
+    burnout = burnout_alert(profile, trends, fatigue)
+    forecast = weekly_forecast(trends, fatigue)
+
+
+    # ==========================
+    # UPDATE MEMORY
+    # ==========================
+
+    memory = update_session(memory, uid, fatigue, progress)
+
+    save_memory(memory)
+
+
+    # ==========================
+    # DISPLAY RESULTS
+    # ==========================
+
+    levels = {0: "LOW", 1: "MEDIUM", 2: "HIGH"}
+
+
+    print("\n=== USER PROFILE ===")
+
+    for k, v in profile.items():
+        print(f"{k.replace('_',' ').title()}: {v}")
+
+
+    print("\n=== TRENDS ===")
+
+    for k, v in trends.items():
+        print(f"{k.replace('_',' ').title()}: {v}")
+
+
+    print("\n=== FATIGUE ===")
+    print(levels[fatigue], "FATIGUE") 
+
+
+    print("\n=== AI HEALTH DASHBOARD ===")
+
+    print("📊 Progress Score :", progress, "/100")
+    print("⚠️ Risk Level     :", risk)
+    print("🔥 Burnout Alert  :", burnout)
+    print("📅 Weekly Forecast:", forecast)
+
+    print("🧠 Agent Insight :", evaluate_agent(memory, uid))
+    print("🔁 Feedback Loop :", analyze_feedback(memory, uid))
+
+
+    # ==========================
+    # INTERACTIVE MENU
+    # ==========================
+
+    while True:
+
+        print("\n====================")
+        print("1 → Recovery Plan")
+        print("2 → AI Goal System")
+        print("3 → Exit")
+        print("====================")
+
+        choice = input("Choose option: ")
+
+
+        # --------------------------
+        # RECOVERY PLAN
+        # --------------------------
+
+        if choice == "1":
+
+            print("\n🧘 RECOVERY PLAN\n")
+
+            for d in generate_recovery_plan(fatigue, recovery_index):
+                print("•", d)
+
+
+        # --------------------------
+        # AI GOAL SYSTEM
+        # --------------------------
+
+        elif choice == "2":
+
+            ai_goal = generate_ai_goal(profile, trends, fatigue, memory, uid)
+
+            feedback = collect_feedback()
+
+            memory[uid]["goals"].append({
+                "goal": ai_goal["goal"],
+                "progress": progress,
+                "feedback": feedback,
+                "date": str(pd.Timestamp.today().date())
+            })
+
+            save_memory(memory)
+
+
+            plan = generate_ai_goal_plan(ai_goal)
+
+            fatigue_text = levels[fatigue] + " FATIGUE"
+
+
+            print("\n🤖 AI GOAL")
+
+            print("Goal     :", ai_goal["goal"])
+            print("Focus    :", ai_goal["focus"])
+            print("Reason   :", ai_goal["reason"])
+            print("Duration :", ai_goal["duration"])
+
+
+            print("\n📋 PLAN")
+
+            for p in plan:
+                print("•", p)
+
+
+            explain_goal(
+                profile,
+                trends,
+                fatigue_text,
+                profile["recovery_rate"],
+                ai_goal
+            )
+
+            print("🔥 Stay consistent. Progress is coming.")
+
+
+        # --------------------------
+        # EXIT
+        # --------------------------
+
+        elif choice == "3":
+
+            print("\n👋 Keep grinding. See you soon!")
+            break
+
+
+        else:
+            print("❌ Invalid option")
+
+
+# ==========================
+# ENTRY
+# ==========================
+
+if __name__ == "__main__":
+    run_cli()
