@@ -294,3 +294,33 @@ def debug():
         "app_contents": os.listdir("/app"),
         "data_contents": os.listdir("/app/data") if os.path.exists("/app/data") else "NOT FOUND",
     }
+
+# ── Fitbit OAuth Routes ────────────────────────────────────────────────────────
+from fastapi.responses import RedirectResponse
+from agents.fitbit_agent import get_auth_url, exchange_code, fetch_today
+
+@app.get("/fitbit/login")
+def fitbit_login():
+    return RedirectResponse(get_auth_url())
+
+@app.get("/fitbit/callback")
+def fitbit_callback(code: str):
+    tokens = exchange_code(code)
+    user_id = tokens.get("user_id", "unknown")
+    return RedirectResponse(
+        f"https://ai-fitness-coach-henna-tau.vercel.app?fitbit_user={user_id}"
+    )
+
+@app.get("/fitbit/sync/{user_id}")
+def fitbit_sync(user_id: str):
+    try:
+        data = fetch_today(user_id)
+        return {"status": "ok", "data": data}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/fitbit/status/{user_id}")
+def fitbit_status(user_id: str):
+    from agents.fitbit_agent import load_tokens
+    tokens = load_tokens(user_id)
+    return {"connected": bool(tokens)}
