@@ -324,3 +324,7 @@ def fitbit_status(user_id: str):
     from agents.fitbit_agent import load_tokens
     tokens = load_tokens(user_id)
     return {"connected": bool(tokens)}
+
+@app.get("/fitbit/auth-url")
+def fitbit_auth_url():
+    return {"url": get_auth_url()}
