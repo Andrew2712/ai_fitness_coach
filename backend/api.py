@@ -256,6 +256,16 @@ def ai_goal(user_id: int):
         "explanation": explanation,
     }
 
+@app.get("/debug")
+def debug():
+    import os
+    return {
+        "DATA_DIR":  os.environ.get("DATA_DIR", "NOT SET"),
+        "MODEL_DIR": os.environ.get("MODEL_DIR", "NOT SET"),
+        "cwd":       os.getcwd(),
+        "files":     os.listdir("/app") if os.path.exists("/app") else "no /app",
+        "app_files": os.listdir(os.getcwd()),
+    }
 
 @app.post("/feedback")
 def submit_feedback(body: FeedbackRequest):
@@ -273,3 +283,6 @@ def submit_feedback(body: FeedbackRequest):
         return {"status": "ok", "message": "Feedback saved"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+
+    
