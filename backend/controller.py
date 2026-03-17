@@ -10,10 +10,9 @@ import shutil
 # CONFIG
 # ==========================
 
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-
-DATA_DIR = os.path.join(BASE_DIR, "data")
-MODEL_DIR = os.path.join(BASE_DIR, "models")
+BASE_DIR  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR  = os.environ.get("DATA_DIR",  os.path.join(BASE_DIR, "data"))
+MODEL_DIR = os.environ.get("MODEL_DIR", os.path.join(BASE_DIR, "models"))
 
 ACTIVITY = os.path.join(DATA_DIR, "dailyActivity_merged.csv")
 SLEEP = os.path.join(DATA_DIR, "sleepDay_merged.csv")

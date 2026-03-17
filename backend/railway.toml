@@ -1,6 +1,6 @@
 [build]
-builder = "nixpacks"
+builder = "dockerfile"
+dockerfilePath = "backend/Dockerfile"
 
 [deploy]
-startCommand = "sh -c 'uvicorn api:app --host 0.0.0.0 --port ${PORT:-8000}'"
-restartPolicyType = "ON_FAILURE"
+restartPolicyType = "on-failure"

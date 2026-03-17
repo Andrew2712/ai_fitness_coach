@@ -1,0 +1,103 @@
+{
+    "2026352035": {
+        "sessions": 5,
+        "goals": [
+            {
+                "goal": "Active Recovery",
+                "progress": 50,
+                "feedback": "followed"
+            },
+            {
+                "goal": "Active Recovery",
+                "progress": 50,
+                "feedback": "followed"
+            },
+            {
+                "goal": "Active Recovery",
+                "progress": 50,
+                "feedback": "followed"
+            },
+            {
+                "goal": "Active Recovery",
+                "feedback": "Yes",
+                "comment": ""
+            },
+            {
+                "goal": "Active Recovery",
+                "feedback": "Yes",
+                "comment": ""
+            },
+            {
+                "goal": "Active Recovery",
+                "feedback": "Yes",
+                "comment": ""
+            },
+            {
+                "goal": "Active Recovery",
+                "feedback": "Yes",
+                "comment": ""
+            },
+            {
+                "goal": "Active Recovery",
+                "feedback": "Yes",
+                "comment": ""
+            },
+            {
+                "goal": "Active Recovery",
+                "feedback": "Yes",
+                "comment": ""
+            },
+            {
+                "goal": "Deep Recovery Phase",
+                "feedback": "Yes",
+                "comment": ""
+            }
+        ],
+        "progress": [
+            50,
+            50,
+            50,
+            50,
+            50
+        ],
+        "last_fatigue": 2
+    },
+    "5577150313": {
+        "sessions": 1,
+        "goals": [
+            {
+                "goal": "Fat Loss & Conditioning",
+                "progress": 80,
+                "feedback": "followed"
+            },
+            {
+                "goal": "Fat Loss & Conditioning",
+                "feedback": "No",
+                "comment": ""
+            }
+        ],
+        "progress": [
+            80
+        ],
+        "last_fatigue": 0
+    },
+    "4388161847": {
+        "sessions": 1,
+        "goals": [
+            {
+                "goal": "Balanced Lifestyle",
+                "feedback": "Yes",
+                "comment": ""
+            },
+            {
+                "goal": "Balanced Lifestyle",
+                "feedback": "No",
+                "comment": ""
+            }
+        ],
+        "progress": [
+            73
+        ],
+        "last_fatigue": 1
+    }
+}

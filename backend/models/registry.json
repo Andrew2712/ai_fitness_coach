@@ -1,0 +1,47 @@
+[
+    {
+        "version": "v4",
+        "accuracy": 0.973,
+        "path": "/workspaces/ai_fitness_coach/models/v4_fatigue.pkl"
+    },
+    {
+        "version": "v5",
+        "accuracy": 0.973,
+        "path": "/workspaces/ai_fitness_coach/models/v5_fatigue.pkl"
+    },
+    {
+        "version": "v6",
+        "accuracy": 0.973,
+        "path": "/workspaces/ai_fitness_coach/models/v6_fatigue.pkl"
+    },
+    {
+        "version": "v7",
+        "accuracy": 0.973,
+        "path": "/workspaces/ai_fitness_coach/models/v7_fatigue.pkl"
+    },
+    {
+        "version": "v6",
+        "accuracy": 0.973,
+        "path": "/workspaces/ai_fitness_coach/models/v6_fatigue.pkl"
+    },
+    {
+        "version": "v7",
+        "accuracy": 0.973,
+        "path": "/workspaces/ai_fitness_coach/models/v7_fatigue.pkl"
+    },
+    {
+        "version": "v6",
+        "accuracy": 0.973,
+        "path": "/workspaces/ai_fitness_coach/models/v6_fatigue.pkl"
+    },
+    {
+        "version": "v6",
+        "accuracy": 0.973,
+        "path": "/workspaces/ai_fitness_coach/models/v6_fatigue.pkl"
+    },
+    {
+        "version": "v6",
+        "accuracy": 0.9388,
+        "path": "/workspaces/ai_fitness_coach/models/v6_fatigue.pkl"
+    }
+]

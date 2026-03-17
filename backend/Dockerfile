@@ -2,9 +2,16 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY . .
-
+# Install dependencies
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy backend code
+COPY backend/ .
+
+# Copy data and models into expected locations
+COPY data/ /app/data/
+COPY models/ /app/models/
 
 EXPOSE 8000
 

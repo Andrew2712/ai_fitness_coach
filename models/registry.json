@@ -1,0 +1,57 @@
+[
+    {
+        "version": "v1",
+        "accuracy": 0.9459,
+        "path": "models/v1_fatigue.pkl"
+    },
+    {
+        "version": "v2",
+        "accuracy": 0.973,
+        "path": "models/v2_fatigue.pkl"
+    },
+    {
+        "version": "v3",
+        "accuracy": 0.973,
+        "path": "models/v3_fatigue.pkl"
+    },
+    {
+        "version": "v4",
+        "accuracy": 0.973,
+        "path": "models/v4_fatigue.pkl"
+    },
+    {
+        "version": "v5",
+        "accuracy": 0.973,
+        "path": "models/v5_fatigue.pkl"
+    },
+    {
+        "version": "v6",
+        "accuracy": 0.973,
+        "path": "models/v6_fatigue.pkl"
+    },
+    {
+        "version": "v7",
+        "accuracy": 0.973,
+        "path": "models/v7_fatigue.pkl"
+    },
+    {
+        "version": "v8",
+        "accuracy": 0.973,
+        "path": "models/v8_fatigue.pkl"
+    },
+    {
+        "version": "v1",
+        "accuracy": 0.973,
+        "path": "models/v1_fatigue.pkl"
+    },
+    {
+        "version": "v2",
+        "accuracy": 0.973,
+        "path": "models/v2_fatigue.pkl"
+    },
+    {
+        "version": "v3",
+        "accuracy": 0.973,
+        "path": "models/v3_fatigue.pkl"
+    }
+]
