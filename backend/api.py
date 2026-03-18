@@ -333,3 +333,122 @@ def fitbit_auth_url():
 def env_test():
     import os
     return {k: v for k, v in os.environ.items() if "FITBIT" in k or "DATA" in k or "MODEL" in k or "RAILWAY" in k}
+
+# ── Auth & User Registration ───────────────────────────────────────────────────
+from database import init_db, get_db, User as DBUser
+from auth import hash_password, verify_password, create_token, decode_token
+from sqlalchemy.orm import Session
+from fastapi import Depends
+from pydantic import BaseModel as BM
+
+# Init DB tables on startup
+try:
+    init_db()
+except Exception as e:
+    print(f"DB init error: {e}")
+
+class RegisterRequest(BM):
+    email: str
+    username: str
+    password: str
+
+class LoginRequest(BM):
+    email: str
+    password: str
+
+@app.post("/auth/register")
+def register(req: RegisterRequest, db: Session = Depends(get_db)):
+    if db.query(DBUser).filter(DBUser.email == req.email).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+    if db.query(DBUser).filter(DBUser.username == req.username).first():
+        raise HTTPException(status_code=400, detail="Username already taken")
+    user = DBUser(
+        email=req.email,
+        username=req.username,
+        hashed_password=hash_password(req.password)
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    token = create_token({"sub": str(user.id), "email": user.email, "username": user.username})
+    return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username}}
+
+@app.post("/auth/login")
+def login(req: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(DBUser).filter(DBUser.email == req.email).first()
+    if not user or not verify_password(req.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    token = create_token({"sub": str(user.id), "email": user.email, "username": user.username})
+    return {
+        "token": token,
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "username": user.username,
+            "fitbit_connected": bool(user.fitbit_user_id)
+        }
+    }
+
+@app.get("/auth/me")
+def get_me(authorization: str = None, db: Session = Depends(get_db)):
+    if not authorization:
+        raise HTTPException(status_code=401, detail="No token")
+    try:
+        token = authorization.replace("Bearer ", "")
+        payload = decode_token(token)
+        user = db.query(DBUser).filter(DBUser.id == int(payload["sub"])).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return {"id": user.id, "email": user.email, "username": user.username, "fitbit_connected": bool(user.fitbit_user_id)}
+    except:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+# ── Updated Fitbit routes with per-user linking ────────────────────────────────
+@app.get("/fitbit/login/{dashboard_user_id}")
+def fitbit_login_user(dashboard_user_id: str):
+    client_id = os.getenv("FITBIT_CLIENT_ID")
+    from urllib.parse import quote
+    redirect = f"https://aifitnesscoach-production-373b.up.railway.app/fitbit/callback"
+    url = (
+        f"https://www.fitbit.com/oauth2/authorize"
+        f"?response_type=code"
+        f"&client_id={client_id}"
+        f"&redirect_uri={quote(redirect, safe='')}"
+        f"&scope=activity%20sleep%20heartrate%20profile"
+        f"&state={dashboard_user_id}"
+        f"&expires_in=604800"
+    )
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url)
+
+@app.get("/fitbit/callback")
+def fitbit_callback_v2(code: str, state: str = None):
+    from agents.fitbit_agent import exchange_code
+    from fastapi.responses import RedirectResponse
+    tokens = exchange_code(code)
+    fitbit_uid = tokens.get("user_id", "unknown")
+    dashboard_user_id = state or fitbit_uid
+    # Save tokens keyed by dashboard user ID
+    from agents.fitbit_agent import save_tokens
+    save_tokens(tokens, dashboard_user_id)
+    return RedirectResponse(
+        f"https://ai-fitness-coach-henna-tau.vercel.app?fitbit_user={fitbit_uid}&dashboard_user={dashboard_user_id}"
+    )
+
+@app.get("/fitbit/sync/{dashboard_user_id}")
+def fitbit_sync_user(dashboard_user_id: str):
+    from agents.fitbit_agent import load_tokens, fetch_today
+    tokens = load_tokens(dashboard_user_id)
+    if not tokens:
+        raise HTTPException(status_code=404, detail="Fitbit not connected for this user")
+    try:
+        data = fetch_today(dashboard_user_id)
+        return {"status": "ok", "data": data}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/fitbit/status/{dashboard_user_id}")
+def fitbit_status_user(dashboard_user_id: str):
+    from agents.fitbit_agent import load_tokens
+    tokens = load_tokens(dashboard_user_id)
+    return {"connected": bool(tokens)}
