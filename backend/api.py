@@ -304,11 +304,15 @@ def fitbit_login():
     return RedirectResponse(get_auth_url())
 
 @app.get("/fitbit/callback")
-def fitbit_callback(code: str):
+def fitbit_callback(code: str, state: str = None):
+    from agents.fitbit_agent import save_tokens
+    from fastapi.responses import RedirectResponse
     tokens = exchange_code(code)
-    user_id = tokens.get("user_id", "unknown")
+    fitbit_uid = tokens.get("user_id", "unknown")
+    dashboard_user_id = state or fitbit_uid
+    save_tokens(tokens, dashboard_user_id)
     return RedirectResponse(
-        f"https://ai-fitness-coach-henna-tau.vercel.app?fitbit_user={user_id}"
+        f"https://ai-fitness-coach-henna-tau.vercel.app?fitbit_user={fitbit_uid}&dashboard_user={dashboard_user_id}"
     )
 
 @app.get("/fitbit/sync/{user_id}")
