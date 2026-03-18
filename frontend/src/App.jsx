@@ -61,6 +61,17 @@ function seeded(seed, n, lo, hi) {
   });
 }
 
+// ── Responsive hook ────────────────────────────────────────────────────────────
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return isMobile;
+}
+
 function SparkLine({ data, color, h = 40, filled = true }) {
   if (!data || data.length < 2) return (
     <svg viewBox="0 0 300 40" width="100%" height={h} preserveAspectRatio="none">
@@ -194,9 +205,10 @@ function FeedbackWidget({ userId, goalName, onDone }) {
   );
 }
 
-// ── Auth Page (Sign In / Sign Up) ──────────────────────────────────────────────
+// ── Auth Page ──────────────────────────────────────────────────────────────────
 function AuthPage({ onLogin }) {
-  const [mode, setMode] = useState("login"); // "login" | "register"
+  const isMobile = useIsMobile();
+  const [mode, setMode] = useState("login");
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -209,14 +221,8 @@ function AuthPage({ onLogin }) {
     setBusy(true); setErr("");
     try {
       const endpoint = mode === "login" ? "/auth/login" : "/auth/register";
-      const body = mode === "login"
-        ? { email, password }
-        : { email, username, password };
-      const r = await fetch(`${API_URL}${endpoint}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      });
+      const body = mode === "login" ? { email, password } : { email, username, password };
+      const r = await fetch(`${API_URL}${endpoint}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json();
       if (!r.ok) throw new Error(d.detail || "Something went wrong");
       localStorage.setItem("acoach_token", d.token);
@@ -227,50 +233,55 @@ function AuthPage({ onLogin }) {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: T.sidebar, display: "flex", fontFamily: "system-ui" }}>
-      {/* Left panel */}
-      <div style={{ width: "55%", background: `linear-gradient(135deg, #0d6efd22 0%, transparent 60%), ${T.sidebar}`, display: "flex", alignItems: "center", justifyContent: "center", padding: 48, position: "relative", overflow: "hidden" }}>
-        <svg style={{ position: "absolute", inset: 0, opacity: 0.04 }} width="100%" height="100%">
-          <defs><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="0.5" /></pattern></defs>
-          <rect width="100%" height="100%" fill="url(#grid)" />
-        </svg>
-        <div style={{ position: "relative", textAlign: "left", maxWidth: 380 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 40 }}>
-            <div style={{ width: 52, height: 52, borderRadius: 16, background: T.blue, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 900, color: "#fff" }}>A</div>
-            <div>
-              <div style={{ fontFamily: "'Nunito Sans', system-ui", fontSize: 24, fontWeight: 800, color: "#fff", letterSpacing: 2 }}>ACOACH</div>
-              <div style={{ fontSize: 11, color: "#94a3b8", letterSpacing: 1.5 }}>AI FITNESS INTELLIGENCE</div>
-            </div>
-          </div>
-          <div style={{ fontSize: 36, fontWeight: 800, color: "#fff", lineHeight: 1.2, marginBottom: 20 }}>
-            Your personal<br /><span style={{ color: T.blue }}>fitness coach.</span>
-          </div>
-          <div style={{ fontSize: 14, color: "#94a3b8", lineHeight: 1.7, marginBottom: 40 }}>
-            AI-powered insights from your wearable data. Training readiness, recovery plans, and personalised goals — all in one place.
-          </div>
-          {["Training Readiness Score", "7-Day Recovery Plans", "AI Goal System", "Real-Time Fitbit Sync"].map(f => (
-            <div key={f} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-              <div style={{ width: 18, height: 18, borderRadius: "50%", background: T.blue + "30", border: `1px solid ${T.blue}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <div style={{ width: 6, height: 6, borderRadius: "50%", background: T.blue }} />
+    <div style={{ minHeight: "100vh", background: T.sidebar, display: "flex", flexDirection: isMobile ? "column" : "row", fontFamily: "system-ui" }}>
+      {/* Left panel — hidden on mobile */}
+      {!isMobile && (
+        <div style={{ width: "55%", background: `linear-gradient(135deg, #0d6efd22 0%, transparent 60%), ${T.sidebar}`, display: "flex", alignItems: "center", justifyContent: "center", padding: 48, position: "relative", overflow: "hidden" }}>
+          <svg style={{ position: "absolute", inset: 0, opacity: 0.04 }} width="100%" height="100%">
+            <defs><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="0.5" /></pattern></defs>
+            <rect width="100%" height="100%" fill="url(#grid)" />
+          </svg>
+          <div style={{ position: "relative", textAlign: "left", maxWidth: 380 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 40 }}>
+              <div style={{ width: 52, height: 52, borderRadius: 16, background: T.blue, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 900, color: "#fff" }}>A</div>
+              <div>
+                <div style={{ fontFamily: "'Nunito Sans', system-ui", fontSize: 24, fontWeight: 800, color: "#fff", letterSpacing: 2 }}>ACOACH</div>
+                <div style={{ fontSize: 11, color: "#94a3b8", letterSpacing: 1.5 }}>AI FITNESS INTELLIGENCE</div>
               </div>
-              <span style={{ fontSize: 13, color: "#cbd5e1" }}>{f}</span>
             </div>
-          ))}
+            <div style={{ fontSize: 36, fontWeight: 800, color: "#fff", lineHeight: 1.2, marginBottom: 20 }}>Your personal<br /><span style={{ color: T.blue }}>fitness coach.</span></div>
+            <div style={{ fontSize: 14, color: "#94a3b8", lineHeight: 1.7, marginBottom: 40 }}>AI-powered insights from your wearable data. Training readiness, recovery plans, and personalised goals — all in one place.</div>
+            {["Training Readiness Score", "7-Day Recovery Plans", "AI Goal System", "Real-Time Fitbit Sync"].map(f => (
+              <div key={f} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                <div style={{ width: 18, height: 18, borderRadius: "50%", background: T.blue + "30", border: `1px solid ${T.blue}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: T.blue }} />
+                </div>
+                <span style={{ fontSize: 13, color: "#cbd5e1" }}>{f}</span>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Right panel */}
-      <div style={{ flex: 1, background: T.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 48 }}>
+      <div style={{ flex: 1, background: T.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: isMobile ? "32px 20px" : 48 }}>
         <div style={{ width: "100%", maxWidth: 380 }}>
-          <div style={{ marginBottom: 32 }}>
-            <div style={{ fontSize: 26, fontWeight: 700, color: T.text, marginBottom: 6, fontFamily: "'Nunito Sans', system-ui" }}>
+          {/* Mobile logo */}
+          {isMobile && (
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 32, justifyContent: "center" }}>
+              <div style={{ width: 44, height: 44, borderRadius: 14, background: T.blue, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 900, color: "#fff" }}>A</div>
+              <div>
+                <div style={{ fontFamily: "'Nunito Sans', system-ui", fontSize: 20, fontWeight: 800, color: T.text, letterSpacing: 2 }}>ACOACH</div>
+                <div style={{ fontSize: 10, color: T.muted, letterSpacing: 1.5 }}>AI FITNESS INTELLIGENCE</div>
+              </div>
+            </div>
+          )}
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 700, color: T.text, marginBottom: 6, fontFamily: "'Nunito Sans', system-ui" }}>
               {mode === "login" ? "Welcome back" : "Create account"}
             </div>
-            <div style={{ fontSize: 14, color: T.muted }}>
-              {mode === "login" ? "Sign in to your ACoach account" : "Join ACoach and start training smarter"}
-            </div>
+            <div style={{ fontSize: 14, color: T.muted }}>{mode === "login" ? "Sign in to your ACoach account" : "Join ACoach and train smarter"}</div>
           </div>
-
           {/* Toggle */}
           <div style={{ display: "flex", background: T.border + "50", borderRadius: 10, padding: 4, marginBottom: 24 }}>
             {["login", "register"].map(m => (
@@ -280,26 +291,24 @@ function AuthPage({ onLogin }) {
               </button>
             ))}
           </div>
-
-          <Card style={{ padding: 28 }}>
+          <Card style={{ padding: isMobile ? 20 : 28 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               {mode === "register" && (
                 <div>
                   <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: T.muted, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.8 }}>Username</label>
-                  <input value={username} onChange={e => setUsername(e.target.value)}
-                    placeholder="johndoe" style={{ width: "100%", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, padding: "11px 14px", color: T.text, fontSize: 14, boxSizing: "border-box", outline: "none", fontFamily: "system-ui" }} />
+                  <input value={username} onChange={e => setUsername(e.target.value)} placeholder="johndoe"
+                    style={{ width: "100%", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, padding: "11px 14px", color: T.text, fontSize: 14, boxSizing: "border-box", outline: "none", fontFamily: "system-ui" }} />
                 </div>
               )}
               <div>
                 <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: T.muted, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.8 }}>Email</label>
-                <input value={email} onChange={e => setEmail(e.target.value)} type="email"
-                  placeholder="you@example.com" style={{ width: "100%", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, padding: "11px 14px", color: T.text, fontSize: 14, boxSizing: "border-box", outline: "none", fontFamily: "system-ui" }} />
+                <input value={email} onChange={e => setEmail(e.target.value)} type="email" placeholder="you@example.com"
+                  style={{ width: "100%", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, padding: "11px 14px", color: T.text, fontSize: 14, boxSizing: "border-box", outline: "none", fontFamily: "system-ui" }} />
               </div>
               <div>
                 <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: T.muted, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.8 }}>Password</label>
-                <input value={password} onChange={e => setPassword(e.target.value)} type="password"
-                  onKeyDown={e => e.key === "Enter" && submit()}
-                  placeholder="••••••••" style={{ width: "100%", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, padding: "11px 14px", color: T.text, fontSize: 14, boxSizing: "border-box", outline: "none", fontFamily: "system-ui" }} />
+                <input value={password} onChange={e => setPassword(e.target.value)} type="password" onKeyDown={e => e.key === "Enter" && submit()} placeholder="••••••••"
+                  style={{ width: "100%", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, padding: "11px 14px", color: T.text, fontSize: 14, boxSizing: "border-box", outline: "none", fontFamily: "system-ui" }} />
               </div>
               {err && <div style={{ background: T.redLight, border: `1px solid ${T.red}40`, borderRadius: 8, padding: "9px 12px", color: T.red, fontSize: 12 }}>⚠ {err}</div>}
               <button onClick={submit} disabled={busy}
@@ -315,6 +324,33 @@ function AuthPage({ onLogin }) {
   );
 }
 
+// ── Mobile Bottom Nav ──────────────────────────────────────────────────────────
+function MobileBottomNav({ tab, setTab, fetchRecovery, fetchGoal, recovery, goal, loadingRec, loadingGoal }) {
+  const items = [
+    { id: "home",     icon: "⊞", label: "Home"     },
+    { id: "glance",   icon: "◎", label: "Glance"   },
+    { id: "recovery", icon: "🧘", label: "Recovery" },
+    { id: "goal",     icon: "🎯", label: "Goal"     },
+  ];
+  return (
+    <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: T.card, borderTop: `1px solid ${T.border}`, display: "flex", zIndex: 200, paddingBottom: "env(safe-area-inset-bottom)" }}>
+      {items.map(n => (
+        <button key={n.id} onClick={() => {
+          if (n.id === "recovery" && !recovery) fetchRecovery();
+          else if (n.id === "goal" && !goal) fetchGoal();
+          else setTab(n.id);
+        }}
+          style={{ flex: 1, padding: "10px 4px 8px", border: "none", background: "transparent", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+          <span style={{ fontSize: 20 }}>{n.icon}</span>
+          <span style={{ fontSize: 10, color: tab === n.id ? T.blue : T.muted, fontWeight: tab === n.id ? 700 : 400, fontFamily: "system-ui" }}>{n.label}</span>
+          {tab === n.id && <div style={{ width: 4, height: 4, borderRadius: "50%", background: T.blue }} />}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Desktop Sidebar Nav Item ───────────────────────────────────────────────────
 function NavItem({ icon, label, active, onClick }) {
   const [hover, setHover] = useState(false);
   return (
@@ -327,6 +363,7 @@ function NavItem({ icon, label, active, onClick }) {
 }
 
 export default function App() {
+  const isMobile = useIsMobile();
   const [authUser, setAuthUser] = useState(null);
   const [token, setToken]       = useState(null);
   const [data, setData]         = useState(null);
@@ -344,9 +381,9 @@ export default function App() {
   const [fitbitConnected, setFitbitConnected] = useState(false);
   const [fitbitData, setFitbitData] = useState(null);
   const [fitbitSyncing, setFitbitSyncing] = useState(false);
-  // Dataset user selector
   const [datasetUsers, setDatasetUsers] = useState([]);
   const [selectedDatasetUser, setSelectedDatasetUser] = useState(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const hrData     = useRef(seeded(12345, 24, 58, 140));
   const sleepData  = useRef(seeded(12346, 7, 4, 9));
@@ -355,7 +392,7 @@ export default function App() {
   const hrvData    = useRef(seeded(12349, 14, 1, 4));
   const stressData = useRef(seeded(12350, 24, 10, 80));
 
-  // Restore session from localStorage
+  // Restore session
   useEffect(() => {
     const savedToken = localStorage.getItem("acoach_token");
     const savedUser  = localStorage.getItem("acoach_user");
@@ -363,44 +400,36 @@ export default function App() {
       const parsedUser = JSON.parse(savedUser);
       setToken(savedToken);
       setAuthUser(parsedUser);
-      // Check Fitbit status immediately on restore
       fetch(`${API_URL}/fitbit/status/${parsedUser.id}`)
         .then(r => r.json())
-        .then(d => {
-          setFitbitConnected(d.connected);
-          if (d.connected) syncFitbit();
-        }).catch(() => {});
+        .then(d => { setFitbitConnected(d.connected); if (d.connected) syncFitbit(parsedUser.id); })
+        .catch(() => {});
     }
   }, []);
 
-  // Check Fitbit connection status when user logs in
+  // Check Fitbit + load dataset on auth
   useEffect(() => {
     if (authUser) {
       fetch(`${API_URL}/fitbit/status/${authUser.id}`)
         .then(r => r.json())
-        .then(d => {
-          setFitbitConnected(d.connected);
-          if (d.connected) syncFitbit();
-        }).catch(() => {});
-      // Load dataset users
+        .then(d => { setFitbitConnected(d.connected); if (d.connected) syncFitbit(authUser.id); })
+        .catch(() => {});
       fetch(`${API_URL}/users`).then(r => r.json()).then(d => {
         setDatasetUsers(d.users || []);
-        if (d.users?.length) {
-          setSelectedDatasetUser(d.users[0]);
-          fetchReport(d.users[0]);
-        }
+        if (d.users?.length) { setSelectedDatasetUser(d.users[0]); fetchReport(d.users[0]); }
       }).catch(() => {});
     }
   }, [authUser]);
 
-  // Check URL for fitbit callback
+  // Check fitbit callback URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const dashUser = params.get("dashboard_user");
     if (dashUser) {
       setFitbitConnected(true);
       window.history.replaceState({}, "", window.location.pathname);
-      syncFitbit();
+      const u = JSON.parse(localStorage.getItem("acoach_user") || "{}");
+      if (u.id) syncFitbit(u.id);
     }
   }, []);
 
@@ -426,10 +455,7 @@ export default function App() {
   const fetchReport = async uid => {
     setErr(""); setData(null); setTs(null); setRecovery(null); setGoal(null); setLoading(true);
     try {
-      const [coachRes, tsRes] = await Promise.all([
-        fetch(`${API_URL}/coach/${uid}`),
-        fetch(`${API_URL}/timeseries/${uid}`)
-      ]);
+      const [coachRes, tsRes] = await Promise.all([fetch(`${API_URL}/coach/${uid}`), fetch(`${API_URL}/timeseries/${uid}`)]);
       if (!coachRes.ok) throw new Error(`Error ${coachRes.status}`);
       setData(await coachRes.json());
       if (tsRes.ok) setTs(await tsRes.json());
@@ -452,27 +478,22 @@ export default function App() {
     finally { setLoadingGoal(false); setTab("goal"); }
   };
 
-  const syncFitbit = async () => {
-    if (!authUser) return;
+  const syncFitbit = async (uid) => {
+    const id = uid || authUser?.id;
+    if (!id) return;
     setFitbitSyncing(true);
     try {
-      const r = await fetch(`${API_URL}/fitbit/sync/${authUser.id}`);
+      const r = await fetch(`${API_URL}/fitbit/sync/${id}`);
       if (r.ok) { const d = await r.json(); setFitbitData(d.data); }
     } catch {}
     finally { setFitbitSyncing(false); }
   };
 
-  const handleLogin = (user, tok) => {
-    setAuthUser(user);
-    setToken(tok);
-  };
-
+  const handleLogin = (user, tok) => { setAuthUser(user); setToken(tok); };
   const handleLogout = () => {
-    localStorage.removeItem("acoach_token");
-    localStorage.removeItem("acoach_user");
-    setAuthUser(null); setToken(null); setData(null);
-    setTs(null); setRecovery(null); setGoal(null);
-    setFitbitConnected(false); setFitbitData(null);
+    localStorage.removeItem("acoach_token"); localStorage.removeItem("acoach_user");
+    setAuthUser(null); setToken(null); setData(null); setTs(null);
+    setRecovery(null); setGoal(null); setFitbitConnected(false); setFitbitData(null);
   };
 
   if (!authUser) return <AuthPage onLogin={handleLogin} />;
@@ -527,73 +548,96 @@ export default function App() {
       `}</style>
 
       <div style={{ display: "flex", minHeight: "100vh" }}>
-        {/* ── Sidebar ── */}
-        <div style={{ width: sidebarOpen ? 220 : 64, background: T.sidebar, flexShrink: 0, display: "flex", flexDirection: "column", transition: "width 0.2s ease", position: "sticky", top: 0, height: "100vh", overflow: "hidden" }}>
-          <div style={{ padding: "20px 16px 16px", borderBottom: "1px solid #ffffff12" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: T.blue, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 800, color: "#fff", flexShrink: 0 }}>A</div>
-              {sidebarOpen && <div>
-                <div style={{ fontFamily: "'Nunito Sans', system-ui", fontSize: 16, fontWeight: 800, color: "#fff", letterSpacing: 1.5 }}>ACOACH</div>
-                <div style={{ fontSize: 10, color: "#64748b", letterSpacing: 1 }}>FITNESS AI</div>
-              </div>}
-            </div>
-          </div>
-          {sidebarOpen && (
-            <div style={{ padding: "12px 16px", borderBottom: "1px solid #ffffff10" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 32, height: 32, borderRadius: "50%", background: T.blue + "30", border: `1px solid ${T.blue}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: T.blue, flexShrink: 0 }}>
-                  {authUser.username?.slice(0, 2).toUpperCase() || "??"}
-                </div>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0" }}>{authUser.username}</div>
-                  <div style={{ fontSize: 10, color: T.muted }}>{authUser.email}</div>
-                  {fitbitConnected && <div style={{ fontSize: 10, color: T.cyan }}>⌚ Fitbit connected</div>}
-                </div>
+
+        {/* ── Desktop Sidebar ── */}
+        {!isMobile && (
+          <div style={{ width: sidebarOpen ? 220 : 64, background: T.sidebar, flexShrink: 0, display: "flex", flexDirection: "column", transition: "width 0.2s ease", position: "sticky", top: 0, height: "100vh", overflow: "hidden" }}>
+            <div style={{ padding: "20px 16px 16px", borderBottom: "1px solid #ffffff12" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: T.blue, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 800, color: "#fff", flexShrink: 0 }}>A</div>
+                {sidebarOpen && <div>
+                  <div style={{ fontFamily: "'Nunito Sans', system-ui", fontSize: 16, fontWeight: 800, color: "#fff", letterSpacing: 1.5 }}>ACOACH</div>
+                  <div style={{ fontSize: 10, color: "#64748b", letterSpacing: 1 }}>FITNESS AI</div>
+                </div>}
               </div>
             </div>
-          )}
-          <div style={{ flex: 1, padding: "12px 8px", overflowY: "auto" }}>
-            {sidebarOpen && <div style={{ fontSize: 10, color: "#475569", letterSpacing: 1.2, textTransform: "uppercase", padding: "4px 8px 8px", fontWeight: 600 }}>Dashboard</div>}
-            {navItems.map(n => (
-              <NavItem key={n.id} icon={n.icon} label={sidebarOpen ? n.label : ""} active={tab === n.id}
-                onClick={() => { if (n.id === "recovery" && !recovery) fetchRecovery(); else if (n.id === "goal" && !goal) fetchGoal(); else setTab(n.id); }} />
-            ))}
-            {sidebarOpen && <div style={{ fontSize: 10, color: "#475569", letterSpacing: 1.2, textTransform: "uppercase", padding: "16px 8px 8px", fontWeight: 600 }}>Plans</div>}
-            <NavItem icon="🧘" label={sidebarOpen ? (loadingRec  ? "Loading…" : "Recovery Plan") : ""} active={false} onClick={fetchRecovery} />
-            <NavItem icon="🎯" label={sidebarOpen ? (loadingGoal ? "Loading…" : "AI Goal")       : ""} active={false} onClick={fetchGoal} />
+            {sidebarOpen && (
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid #ffffff10" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: "50%", background: T.blue + "30", border: `1px solid ${T.blue}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: T.blue, flexShrink: 0 }}>
+                    {authUser.username?.slice(0, 2).toUpperCase() || "??"}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0" }}>{authUser.username}</div>
+                    <div style={{ fontSize: 10, color: T.muted }}>{authUser.email}</div>
+                    {fitbitConnected && <div style={{ fontSize: 10, color: T.cyan }}>⌚ Fitbit connected</div>}
+                  </div>
+                </div>
+              </div>
+            )}
+            <div style={{ flex: 1, padding: "12px 8px", overflowY: "auto" }}>
+              {sidebarOpen && <div style={{ fontSize: 10, color: "#475569", letterSpacing: 1.2, textTransform: "uppercase", padding: "4px 8px 8px", fontWeight: 600 }}>Dashboard</div>}
+              {navItems.map(n => (
+                <NavItem key={n.id} icon={n.icon} label={sidebarOpen ? n.label : ""} active={tab === n.id}
+                  onClick={() => { if (n.id === "recovery" && !recovery) fetchRecovery(); else if (n.id === "goal" && !goal) fetchGoal(); else setTab(n.id); }} />
+              ))}
+              {sidebarOpen && <div style={{ fontSize: 10, color: "#475569", letterSpacing: 1.2, textTransform: "uppercase", padding: "16px 8px 8px", fontWeight: 600 }}>Plans</div>}
+              <NavItem icon="🧘" label={sidebarOpen ? (loadingRec ? "Loading…" : "Recovery Plan") : ""} active={false} onClick={fetchRecovery} />
+              <NavItem icon="🎯" label={sidebarOpen ? (loadingGoal ? "Loading…" : "AI Goal") : ""} active={false} onClick={fetchGoal} />
+            </div>
+            <div style={{ padding: "12px 8px", borderTop: "1px solid #ffffff10" }}>
+              <NavItem icon="↩" label={sidebarOpen ? "Sign Out" : ""} active={false} onClick={handleLogout} />
+            </div>
           </div>
-          <div style={{ padding: "12px 8px", borderTop: "1px solid #ffffff10" }}>
-            <NavItem icon="↩" label={sidebarOpen ? "Sign Out" : ""} active={false} onClick={handleLogout} />
-          </div>
-        </div>
+        )}
 
         {/* ── Main ── */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+
           {/* Header */}
-          <div style={{ background: T.card, borderBottom: `1px solid ${T.border}`, padding: "12px 24px", display: "flex", alignItems: "center", gap: 12, position: "sticky", top: 0, zIndex: 100 }}>
-            <button onClick={() => setSidebarOpen(v => !v)} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${T.border}`, background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: T.muted }}>☰</button>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: T.text, fontFamily: "'Nunito Sans', system-ui" }}>{tabTitle}</div>
-              <div style={{ fontSize: 12, color: T.muted }}>{authUser.username} • {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</div>
+          <div style={{ background: T.card, borderBottom: `1px solid ${T.border}`, padding: isMobile ? "10px 16px" : "12px 24px", display: "flex", alignItems: "center", gap: isMobile ? 8 : 12, position: "sticky", top: 0, zIndex: 100 }}>
+            {!isMobile && (
+              <button onClick={() => setSidebarOpen(v => !v)} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${T.border}`, background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: T.muted }}>☰</button>
+            )}
+            {isMobile && (
+              <div style={{ width: 32, height: 32, borderRadius: 10, background: T.blue, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "#fff", flexShrink: 0 }}>A</div>
+            )}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: isMobile ? 15 : 18, fontWeight: 700, color: T.text, fontFamily: "'Nunito Sans', system-ui", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{tabTitle}</div>
+              <div style={{ fontSize: 11, color: T.muted }}>{authUser.username} • {new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}</div>
             </div>
-            {/* Dataset user selector */}
-            {datasetUsers.length > 0 && (
+            {/* Dataset selector — hidden on small mobile */}
+            {!isMobile && datasetUsers.length > 0 && (
               <select value={selectedDatasetUser || ""} onChange={e => { setSelectedDatasetUser(e.target.value); fetchReport(e.target.value); }}
                 style={{ background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: T.text, cursor: "pointer", outline: "none" }}>
                 {datasetUsers.map(u => <option key={u} value={u}>Dataset: {u}</option>)}
               </select>
             )}
             {/* Fitbit button */}
-            <button onClick={() => window.open(`${API_URL}/fitbit/login/${authUser.id}`, "_self")}
-              style={{ background: fitbitConnected ? T.greenLight : T.blueLight, border: `1px solid ${fitbitConnected ? T.green : T.blue}`, borderRadius: 8, padding: "6px 14px", color: fitbitConnected ? T.green : T.blue, fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+            <button onClick={() => window.location.href = `${API_URL}/fitbit/login/${authUser.id}`}
+              style={{ background: fitbitConnected ? T.greenLight : T.blueLight, border: `1px solid ${fitbitConnected ? T.green : T.blue}`, borderRadius: 8, padding: isMobile ? "6px 10px" : "6px 14px", color: fitbitConnected ? T.green : T.blue, fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
               <span>⌚</span>
-              <span>{fitbitConnected ? "Fitbit ✓" : "Connect Fitbit"}</span>
+              <span>{fitbitConnected ? (isMobile ? "✓" : "Fitbit ✓") : (isMobile ? "Fitbit" : "Connect Fitbit")}</span>
             </button>
+            {/* Mobile sign out */}
+            {isMobile && (
+              <button onClick={handleLogout} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${T.border}`, background: "transparent", cursor: "pointer", fontSize: 14, color: T.muted }}>↩</button>
+            )}
             {err && <div style={{ background: T.redLight, color: T.red, borderRadius: 8, padding: "6px 12px", fontSize: 12 }}>⚠ {err}</div>}
           </div>
 
+          {/* Mobile dataset selector */}
+          {isMobile && datasetUsers.length > 0 && (
+            <div style={{ background: T.card, borderBottom: `1px solid ${T.border}`, padding: "8px 16px" }}>
+              <select value={selectedDatasetUser || ""} onChange={e => { setSelectedDatasetUser(e.target.value); fetchReport(e.target.value); }}
+                style={{ width: "100%", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, padding: "8px 12px", fontSize: 13, color: T.text, cursor: "pointer", outline: "none" }}>
+                {datasetUsers.map(u => <option key={u} value={u}>Dataset: {u}</option>)}
+              </select>
+            </div>
+          )}
+
           {/* Page content */}
-          <div style={{ flex: 1, padding: "24px", overflowY: "auto" }}>
+          <div style={{ flex: 1, padding: isMobile ? "16px" : "24px", overflowY: "auto", paddingBottom: isMobile ? 80 : (isMobile ? 16 : 24) }}>
             {loading && (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "50vh", gap: 12 }}>
                 <div style={{ width: 40, height: 40, borderRadius: "50%", border: `3px solid ${T.border}`, borderTopColor: T.blue, animation: "spin 0.8s linear infinite" }} />
@@ -606,84 +650,82 @@ export default function App() {
                 {/* ══ HOME ══ */}
                 {tab === "home" && (
                   <div className="fade">
-                    {/* Summary cards */}
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
+                    {/* Summary cards — 2 cols on mobile, 4 on desktop */}
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fit, minmax(200px, 1fr))", gap: isMobile ? 12 : 16, marginBottom: isMobile ? 16 : 24 }}>
                       <Card accent={hc}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                           <div>
-                            <MetricLabel>Training Readiness</MetricLabel>
-                            <BigNum color={hc} size={32}>{health != null ? Math.round(animScore) : "—"}</BigNum>
-                            <SubText>{hl} · {data.risk || "—"} risk</SubText>
+                            <MetricLabel>Readiness</MetricLabel>
+                            <BigNum color={hc} size={isMobile ? 26 : 32}>{health != null ? Math.round(animScore) : "—"}</BigNum>
+                            <SubText>{hl} · {data.risk || "—"}</SubText>
                           </div>
-                          <Ring pct={health ?? 0} color={hc} size={60} stroke={6}>
-                            <span style={{ fontSize: 14, fontWeight: 700, color: hc }}>{health != null ? Math.round(animScore) : "—"}</span>
+                          <Ring pct={health ?? 0} color={hc} size={isMobile ? 48 : 60} stroke={5}>
+                            <span style={{ fontSize: isMobile ? 11 : 14, fontWeight: 700, color: hc }}>{health != null ? Math.round(animScore) : "—"}</span>
                           </Ring>
                         </div>
                       </Card>
                       <Card accent={fat.color}>
                         <MetricLabel>Body Battery</MetricLabel>
-                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                          <Ring pct={progress} color={progress > 60 ? T.green : progress > 30 ? T.amber : T.red} size={60} stroke={6}>
-                            <span style={{ fontSize: 14, fontWeight: 700 }}>{progress}</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <Ring pct={progress} color={progress > 60 ? T.green : progress > 30 ? T.amber : T.red} size={isMobile ? 48 : 60} stroke={5}>
+                            <span style={{ fontSize: isMobile ? 11 : 14, fontWeight: 700 }}>{progress}</span>
                           </Ring>
                           <div>
-                            <BigNum size={28}>{progress}</BigNum>
+                            <BigNum size={isMobile ? 22 : 28}>{progress}</BigNum>
                             <SubText>+{Math.round(progress * 0.6)} charged</SubText>
                           </div>
                         </div>
                       </Card>
                       <Card>
                         <MetricLabel>Sleep Coach</MetricLabel>
-                        <BigNum size={24}>{data.profile?.avg_sleep ? `${Math.floor(data.profile.avg_sleep / 60)}h ${Math.round(data.profile.avg_sleep % 60)}m` : "8h rec."}</BigNum>
-                        <SubText>{(data.profile?.avg_sleep ?? 480) < 420 ? "You could use more sleep." : "Sleep on track."}</SubText>
+                        <BigNum size={isMobile ? 18 : 24}>{data.profile?.avg_sleep ? `${Math.floor(data.profile.avg_sleep / 60)}h ${Math.round(data.profile.avg_sleep % 60)}m` : "8h rec."}</BigNum>
+                        <SubText>{(data.profile?.avg_sleep ?? 480) < 420 ? "Need more sleep." : "Sleep on track."}</SubText>
                       </Card>
                       <Card>
                         <MetricLabel>HRV Status</MetricLabel>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                           <div style={{ width: 8, height: 8, borderRadius: "50%", background: hrvColor }} />
-                          <BigNum color={hrvColor} size={22}>{hrvStatus}</BigNum>
+                          <BigNum color={hrvColor} size={isMobile ? 16 : 22}>{hrvStatus}</BigNum>
                         </div>
                         <SubText>{latestHrv7d != null ? latestHrv7d.toFixed(2) + " RMSSD" : "No data"}</SubText>
                       </Card>
                     </div>
 
                     {/* Fitbit Live Card */}
-                    <SectionLabel>Fitbit Live — Your Device</SectionLabel>
-                    <Card accent={fitbitConnected ? T.green : T.blue} style={{ marginBottom: 24 }}>
+                    <SectionLabel>Fitbit Live</SectionLabel>
+                    <Card accent={fitbitConnected ? T.green : T.blue} style={{ marginBottom: isMobile ? 16 : 24 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
                         <div style={{ flex: 1 }}>
                           <MetricLabel>TODAY'S DATA FROM YOUR FITBIT</MetricLabel>
                           {fitbitConnected ? (
                             fitbitData ? (
-                              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginTop: 10 }}>
+                              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginTop: 10 }}>
                                 {[
                                   { label: "Steps",    val: fitbitData.TotalSteps?.toLocaleString() ?? "—",   icon: "👟" },
                                   { label: "Calories", val: fitbitData.Calories?.toLocaleString() ?? "—",     icon: "🔥" },
                                   { label: "Sleep",    val: fitbitData.TotalMinutesAsleep ? `${Math.floor(fitbitData.TotalMinutesAsleep/60)}h ${fitbitData.TotalMinutesAsleep%60}m` : "—", icon: "😴" },
                                   { label: "Avg HR",   val: fitbitData.AvgHeartRate ? `${Math.round(fitbitData.AvgHeartRate)} bpm` : "—", icon: "❤️" },
                                 ].map(m => (
-                                  <div key={m.label} style={{ background: T.bg, borderRadius: 8, padding: "10px 12px" }}>
-                                    <div style={{ fontSize: 16, marginBottom: 4 }}>{m.icon}</div>
-                                    <div style={{ fontSize: 16, fontWeight: 700, color: T.text }}>{m.val}</div>
+                                  <div key={m.label} style={{ background: T.bg, borderRadius: 8, padding: "8px 10px" }}>
+                                    <div style={{ fontSize: 14, marginBottom: 2 }}>{m.icon}</div>
+                                    <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>{m.val}</div>
                                     <div style={{ fontSize: 10, color: T.muted }}>{m.label}</div>
                                   </div>
                                 ))}
                               </div>
-                            ) : <SubText>{fitbitSyncing ? "Syncing your Fitbit data…" : "Fitbit connected — click Sync to load today's data"}</SubText>
-                          ) : (
-                            <SubText>Connect your personal Fitbit to see today's real-time data here</SubText>
-                          )}
+                            ) : <SubText>{fitbitSyncing ? "Syncing…" : "Click Sync to load today's data"}</SubText>
+                          ) : <SubText>Connect your Fitbit for real-time data</SubText>}
                         </div>
                         <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
                           {fitbitConnected && (
-                            <button onClick={syncFitbit}
-                              style={{ background: T.greenLight, border: `1px solid ${T.green}`, borderRadius: 8, padding: "8px 16px", color: T.green, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-                              {fitbitSyncing ? "Syncing…" : "🔄 Sync"}
+                            <button onClick={() => syncFitbit(authUser.id)}
+                              style={{ background: T.greenLight, border: `1px solid ${T.green}`, borderRadius: 8, padding: "8px 12px", color: T.green, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                              {fitbitSyncing ? "…" : "🔄"}
                             </button>
                           )}
-                          <button onClick={() => window.open(`${API_URL}/fitbit/login/${authUser.id}`, "_self")}
-                            style={{ background: fitbitConnected ? T.bg : T.blue, border: `1px solid ${fitbitConnected ? T.border : T.blue}`, borderRadius: 8, padding: "8px 16px", color: fitbitConnected ? T.muted : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-                            {fitbitConnected ? "Reconnect" : "🔗 Connect Fitbit"}
+                          <button onClick={() => window.location.href = `${API_URL}/fitbit/login/${authUser.id}`}
+                            style={{ background: fitbitConnected ? T.bg : T.blue, border: `1px solid ${fitbitConnected ? T.border : T.blue}`, borderRadius: 8, padding: "8px 12px", color: fitbitConnected ? T.muted : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                            {fitbitConnected ? "Reconnect" : "🔗 Connect"}
                           </button>
                         </div>
                       </div>
@@ -691,10 +733,10 @@ export default function App() {
 
                     {/* In Focus */}
                     <SectionLabel>In Focus</SectionLabel>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 12 : 16, marginBottom: isMobile ? 16 : 24 }}>
                       <Card>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-                          <div style={{ width: 32, height: 32, borderRadius: "50%", background: hc + "20", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🏃</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                          <div style={{ width: 30, height: 30, borderRadius: "50%", background: hc + "20", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>🏃</div>
                           <div>
                             <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>Training Readiness</div>
                             <div style={{ fontSize: 11, color: T.muted }}>Balance your training load</div>
@@ -720,85 +762,72 @@ export default function App() {
                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
                           <div>
                             <div style={{ fontSize: 11, color: T.muted, marginBottom: 4 }}>Training Status</div>
-                            <BigNum size={20}>{tsStatus}</BigNum>
+                            <BigNum size={isMobile ? 18 : 20}>{tsStatus}</BigNum>
                           </div>
                           <div style={{ textAlign: "right" }}>
                             <Pill color={T.green} bg={T.greenLight}>VO₂ Good</Pill>
-                            <div style={{ marginTop: 6 }}><Pill color={fat.color} bg={fat.color + "18"}>{fat.label} Load</Pill></div>
+                            <div style={{ marginTop: 4 }}><Pill color={fat.color} bg={fat.color + "18"}>{fat.label} Load</Pill></div>
                           </div>
                         </div>
                         <StatusBar value={tsStatus} />
-                        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 10, color: T.subtle }}>
-                          <span>Last 4w</span><span>Since this week</span>
-                        </div>
-                        <div style={{ marginTop: 12, fontSize: 12, color: T.muted, lineHeight: 1.5 }}>{data.burnout || "—"}</div>
+                        <div style={{ marginTop: 10, fontSize: 12, color: T.muted, lineHeight: 1.5 }}>{data.burnout || "—"}</div>
                       </Card>
                     </div>
 
                     {/* Temporary Items */}
-                    <SectionLabel>Temporary Items</SectionLabel>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
-                      <Card style={{ borderLeft: `3px solid ${T.blue}` }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                          <div style={{ width: 36, height: 36, borderRadius: "50%", background: T.blueLight, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>😴</div>
-                          <div>
-                            <MetricLabel>Sleep Coach</MetricLabel>
-                            <BigNum size={18}>{data.profile?.avg_sleep ? `${Math.floor(data.profile.avg_sleep / 60)}h recommended` : "9h recommended"}</BigNum>
-                            <SubText>{(data.profile?.avg_sleep ?? 480) < 420 ? "You could use a lot more sleep today." : "Good sleep pattern."}</SubText>
+                    <SectionLabel>Insights</SectionLabel>
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(200px, 1fr))", gap: isMobile ? 10 : 16, marginBottom: isMobile ? 16 : 24 }}>
+                      {[
+                        { icon: "😴", color: T.blue, bg: T.blueLight, label: "Sleep Coach", val: data.profile?.avg_sleep ? `${Math.floor(data.profile.avg_sleep / 60)}h recommended` : "9h recommended", sub: (data.profile?.avg_sleep ?? 480) < 420 ? "You could use more sleep." : "Good sleep pattern." },
+                        { icon: "⚡", color: T.amber, bg: T.amberLight, label: "Forecast", val: data.forecast || "—", sub: "" },
+                        { icon: "💡", color: T.purple, bg: T.purpleLight, label: "Insight", val: data.insight || "—", sub: "" },
+                      ].map(item => (
+                        <Card key={item.label} style={{ borderLeft: `3px solid ${item.color}` }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <div style={{ width: 32, height: 32, borderRadius: "50%", background: item.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{item.icon}</div>
+                            <div>
+                              <MetricLabel>{item.label}</MetricLabel>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{item.val}</div>
+                              {item.sub && <SubText>{item.sub}</SubText>}
+                            </div>
                           </div>
-                        </div>
-                      </Card>
-                      <Card style={{ borderLeft: `3px solid ${T.amber}` }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                          <div style={{ width: 36, height: 36, borderRadius: "50%", background: T.amberLight, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>⚡</div>
-                          <div><MetricLabel>Forecast</MetricLabel><SubText style={{ color: T.text, fontSize: 12 }}>{data.forecast || "—"}</SubText></div>
-                        </div>
-                      </Card>
-                      <Card style={{ borderLeft: `3px solid ${T.purple}` }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                          <div style={{ width: 36, height: 36, borderRadius: "50%", background: T.purpleLight, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>💡</div>
-                          <div><MetricLabel>Insight</MetricLabel><SubText style={{ color: T.text, fontSize: 12 }}>{data.insight || "—"}</SubText></div>
-                        </div>
-                      </Card>
+                        </Card>
+                      ))}
                     </div>
 
-                    {/* At a Glance preview */}
+                    {/* At a Glance */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                       <SectionLabel>At a Glance</SectionLabel>
                       <button onClick={() => setTab("glance")} style={{ fontSize: 13, color: T.blue, background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>See All</button>
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: isMobile ? 10 : 16, marginBottom: isMobile ? 16 : 24 }}>
                       {[
-                        { label: "Heart Rate",  val: `${data.profile?.avg_hr ?? 72}`,  unit: "bpm",      chart: <SparkLine data={hrChart} color={T.red} h={36} /> },
-                        { label: "Sleep Score", val: `${data.profile?.avg_sleep ? Math.floor(data.profile.avg_sleep / 60) : 6}h ${data.profile?.avg_sleep ? Math.round(data.profile.avg_sleep % 60) : 24}m`, unit: "Duration", chart: <SparkBar data={sleepChart.slice(0, 7)} color={T.purple} h={36} /> },
-                        { label: "HRV Status",  val: latestHrv7d ? latestHrv7d.toFixed(0) + " ms" : "—", unit: "7d Avg",   chart: <SparkLine data={hrvChart} color={hrvColor} h={36} /> },
-                        { label: "Daily Steps", val: (data.profile?.avg_steps ?? 7500).toLocaleString(),  unit: "avg",      chart: <SparkBar data={stepsChart.slice(0, 7)} color={T.blue} h={36} /> },
+                        { label: "Heart Rate",  val: `${data.profile?.avg_hr ?? 72}`,  unit: "bpm",      chart: <SparkLine data={hrChart} color={T.red} h={32} /> },
+                        { label: "Sleep",       val: `${data.profile?.avg_sleep ? Math.floor(data.profile.avg_sleep / 60) : 6}h ${data.profile?.avg_sleep ? Math.round(data.profile.avg_sleep % 60) : 24}m`, unit: "Duration", chart: <SparkBar data={sleepChart.slice(0, 7)} color={T.purple} h={32} /> },
+                        { label: "HRV",         val: latestHrv7d ? latestHrv7d.toFixed(0) + " ms" : "—", unit: "7d Avg",   chart: <SparkLine data={hrvChart} color={hrvColor} h={32} /> },
+                        { label: "Steps",       val: (data.profile?.avg_steps ?? 7500).toLocaleString(),  unit: "daily avg", chart: <SparkBar data={stepsChart.slice(0, 7)} color={T.blue} h={32} /> },
                       ].map(m => (
                         <Card key={m.label}>
                           <MetricLabel>{m.label}</MetricLabel>
-                          <BigNum size={20}>{m.val}</BigNum>
-                          <div style={{ fontSize: 11, color: T.subtle }}>{m.unit}</div>
-                          <div style={{ marginTop: 8, minHeight: 36 }}>{m.chart}</div>
+                          <BigNum size={isMobile ? 16 : 20}>{m.val}</BigNum>
+                          <div style={{ fontSize: 10, color: T.subtle }}>{m.unit}</div>
+                          <div style={{ marginTop: 6, minHeight: 32 }}>{m.chart}</div>
                         </Card>
                       ))}
                     </div>
 
                     {/* Training Plans */}
                     <SectionLabel>Training Plans</SectionLabel>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                      <button onClick={fetchRecovery} style={{ background: T.card, border: `1px solid ${T.blue}44`, borderRadius: 12, padding: 20, color: T.blue, textAlign: "left", cursor: "pointer", transition: "box-shadow 0.15s" }}
-                        onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(13,110,253,0.12)"}
-                        onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
-                        <div style={{ fontSize: 28, marginBottom: 10 }}>🧘</div>
-                        <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, fontFamily: "'Nunito Sans', system-ui" }}>{loadingRec ? "Loading…" : "Recovery Plan"}</div>
-                        <div style={{ fontSize: 12, color: T.muted }}>7-day programme</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: isMobile ? 10 : 16 }}>
+                      <button onClick={fetchRecovery} style={{ background: T.card, border: `1px solid ${T.blue}44`, borderRadius: 12, padding: isMobile ? 14 : 20, color: T.blue, textAlign: "left", cursor: "pointer" }}>
+                        <div style={{ fontSize: isMobile ? 22 : 28, marginBottom: 8 }}>🧘</div>
+                        <div style={{ fontSize: isMobile ? 13 : 15, fontWeight: 700, marginBottom: 4, fontFamily: "'Nunito Sans', system-ui" }}>{loadingRec ? "Loading…" : "Recovery Plan"}</div>
+                        <div style={{ fontSize: 11, color: T.muted }}>7-day programme</div>
                       </button>
-                      <button onClick={fetchGoal} style={{ background: T.card, border: `1px solid ${T.green}44`, borderRadius: 12, padding: 20, color: T.green, textAlign: "left", cursor: "pointer", transition: "box-shadow 0.15s" }}
-                        onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(22,163,74,0.12)"}
-                        onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
-                        <div style={{ fontSize: 28, marginBottom: 10 }}>🎯</div>
-                        <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, fontFamily: "'Nunito Sans', system-ui" }}>{loadingGoal ? "Loading…" : "AI Goal"}</div>
-                        <div style={{ fontSize: 12, color: T.muted }}>Personalised target</div>
+                      <button onClick={fetchGoal} style={{ background: T.card, border: `1px solid ${T.green}44`, borderRadius: 12, padding: isMobile ? 14 : 20, color: T.green, textAlign: "left", cursor: "pointer" }}>
+                        <div style={{ fontSize: isMobile ? 22 : 28, marginBottom: 8 }}>🎯</div>
+                        <div style={{ fontSize: isMobile ? 13 : 15, fontWeight: 700, marginBottom: 4, fontFamily: "'Nunito Sans', system-ui" }}>{loadingGoal ? "Loading…" : "AI Goal"}</div>
+                        <div style={{ fontSize: 11, color: T.muted }}>Personalised target</div>
                       </button>
                     </div>
                   </div>
@@ -807,19 +836,19 @@ export default function App() {
                 {/* ══ AT A GLANCE ══ */}
                 {tab === "glance" && (
                   <div className="fade">
-                    {ts && <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: T.greenLight, color: T.green, borderRadius: 20, padding: "4px 12px", fontSize: 12, fontWeight: 600, marginBottom: 20 }}>● Live data — {ts.dates?.length} days</div>}
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
+                    {ts && <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: T.greenLight, color: T.green, borderRadius: 20, padding: "4px 12px", fontSize: 12, fontWeight: 600, marginBottom: 16 }}>● Live data — {ts.dates?.length} days</div>}
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(220px, 1fr))", gap: isMobile ? 12 : 16 }}>
                       <Card>
                         <MetricLabel>❤️ Heart Rate</MetricLabel>
-                        <BigNum size={28}>{data.profile?.avg_hr ?? 72} <span style={{ fontSize: 14, fontWeight: 400, color: T.muted }}>bpm</span></BigNum>
+                        <BigNum size={isMobile ? 24 : 28}>{data.profile?.avg_hr ?? 72} <span style={{ fontSize: 13, fontWeight: 400, color: T.muted }}>bpm</span></BigNum>
                         <SubText>{Math.round((data.profile?.avg_hr ?? 72) * 0.65)} bpm Resting</SubText>
                         <div style={{ marginTop: 10, minHeight: 48 }}><SparkLine data={hrChart} color={T.red} h={48} /></div>
                       </Card>
                       <Card>
                         <MetricLabel>⚡ Body Battery</MetricLabel>
                         <div style={{ display: "flex", justifyContent: "center", margin: "8px 0" }}>
-                          <Ring pct={progress} color={progress > 60 ? T.green : progress > 30 ? T.amber : T.red} size={80} stroke={8}>
-                            <span style={{ fontSize: 20, fontWeight: 700 }}>{progress}</span>
+                          <Ring pct={progress} color={progress > 60 ? T.green : progress > 30 ? T.amber : T.red} size={isMobile ? 70 : 80} stroke={8}>
+                            <span style={{ fontSize: isMobile ? 16 : 20, fontWeight: 700 }}>{progress}</span>
                           </Ring>
                         </div>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
@@ -829,7 +858,7 @@ export default function App() {
                       </Card>
                       <Card>
                         <MetricLabel>😴 Sleep</MetricLabel>
-                        <BigNum size={24}>{data.profile?.avg_sleep ? `${Math.floor(data.profile.avg_sleep / 60)}h ${Math.round(data.profile.avg_sleep % 60)}m` : "6h 24m"}</BigNum>
+                        <BigNum size={isMobile ? 20 : 24}>{data.profile?.avg_sleep ? `${Math.floor(data.profile.avg_sleep / 60)}h ${Math.round(data.profile.avg_sleep % 60)}m` : "6h 24m"}</BigNum>
                         <SubText>Duration avg</SubText>
                         <div style={{ marginTop: 10, minHeight: 62 }}><SparkBar data={sleepChart.slice(0, 7)} color={T.purple} h={48} labels={chartLabels} /></div>
                       </Card>
@@ -837,52 +866,48 @@ export default function App() {
                         <MetricLabel>💚 HRV Status</MetricLabel>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                           <div style={{ width: 10, height: 10, borderRadius: "50%", background: hrvColor }} />
-                          <BigNum color={hrvColor} size={18}>{hrvStatus}</BigNum>
+                          <BigNum color={hrvColor} size={16}>{hrvStatus}</BigNum>
                         </div>
-                        <BigNum size={26}>{latestHrv7d != null ? latestHrv7d.toFixed(2) : "—"} <span style={{ fontSize: 13, fontWeight: 400, color: T.muted }}>RMSSD</span></BigNum>
+                        <BigNum size={isMobile ? 22 : 26}>{latestHrv7d != null ? latestHrv7d.toFixed(2) : "—"} <span style={{ fontSize: 13, fontWeight: 400, color: T.muted }}>RMSSD</span></BigNum>
                         <SubText>7d Avg {ts ? "(real data)" : "(estimated)"}</SubText>
                         <div style={{ marginTop: 10, minHeight: 40 }}><SparkLine data={hrvChart} color={hrvColor} h={40} /></div>
                       </Card>
                       <Card>
                         <MetricLabel>🔄 Training Load</MetricLabel>
-                        <BigNum color={fat.color} size={22}>{fat.label === "High" ? "Very high" : fat.label}</BigNum>
-                        <div style={{ fontSize: 13, color: T.muted, margin: "6px 0 2px" }}>{Math.round(progress * 10 + 200)}/{Math.round(progress * 5 + 100)}</div>
+                        <BigNum color={fat.color} size={isMobile ? 18 : 22}>{fat.label === "High" ? "Very high" : fat.label}</BigNum>
                         <SubText>Acute/Chronic Load</SubText>
-                        <div style={{ marginTop: 6, fontSize: 14, color: T.text }}>{(progress / 50).toFixed(1)} <span style={{ fontSize: 12, color: T.muted }}>Load Ratio</span></div>
+                        <div style={{ marginTop: 4, fontSize: 14, color: T.text }}>{(progress / 50).toFixed(1)} <span style={{ fontSize: 12, color: T.muted }}>Load Ratio</span></div>
                       </Card>
                       <Card>
                         <MetricLabel>📊 Training Status</MetricLabel>
-                        <BigNum size={20}>{tsStatus}</BigNum>
+                        <BigNum size={isMobile ? 18 : 20}>{tsStatus}</BigNum>
                         <SubText>Since last 4w</SubText>
                         <div style={{ marginTop: 12 }}><StatusBar value={tsStatus} /></div>
                       </Card>
                       <Card>
                         <MetricLabel>🧠 Stress</MetricLabel>
                         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                          <Ring pct={fat.pct} color={fat.color} size={70} stroke={7}>
-                            <span style={{ fontSize: 16, fontWeight: 700, color: fat.color }}>{fat.pct}</span>
+                          <Ring pct={fat.pct} color={fat.color} size={60} stroke={7}>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: fat.color }}>{fat.pct}</span>
                           </Ring>
                           <div style={{ flex: 1, minHeight: 48 }}>
                             <SparkBar data={stressChart.slice(0, 12)} color={fat.color} h={48} />
-                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: T.subtle, marginTop: 2 }}>
-                              <span>00:00</span><span>12:00</span><span>24:00</span>
-                            </div>
                           </div>
                         </div>
                       </Card>
                       <Card>
                         <MetricLabel>👟 Steps</MetricLabel>
-                        <BigNum size={26}>{(data.profile?.avg_steps ?? 7500).toLocaleString()}</BigNum>
+                        <BigNum size={isMobile ? 22 : 26}>{(data.profile?.avg_steps ?? 7500).toLocaleString()}</BigNum>
                         <SubText>Daily avg</SubText>
                         <div style={{ marginTop: 10, minHeight: 62 }}><SparkBar data={stepsChart.slice(0, 7)} color={T.blue} h={48} labels={chartLabels} /></div>
                       </Card>
-                      <Card style={{ gridColumn: "span 2" }}>
+                      <Card style={{ gridColumn: isMobile ? "1" : "span 2" }}>
                         <MetricLabel>🔥 Calories</MetricLabel>
-                        <BigNum size={26}>{(data.profile?.avg_cal ?? 2200).toLocaleString()} <span style={{ fontSize: 14, fontWeight: 400, color: T.muted }}>kcal avg</span></BigNum>
+                        <BigNum size={isMobile ? 22 : 26}>{(data.profile?.avg_cal ?? 2200).toLocaleString()} <span style={{ fontSize: 13, fontWeight: 400, color: T.muted }}>kcal avg</span></BigNum>
                         <div style={{ minHeight: 70, marginTop: 10 }}><SparkBar data={calChart.slice(0, 7)} color={T.orange} h={56} labels={chartLabels} /></div>
                       </Card>
                       {data.trends && (
-                        <Card style={{ gridColumn: "span 2" }}>
+                        <Card style={{ gridColumn: isMobile ? "1" : "span 2" }}>
                           <MetricLabel>📈 Trends — Last 4W</MetricLabel>
                           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                             {[
@@ -928,32 +953,32 @@ export default function App() {
                       </div>
                     ) : (
                       <>
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
-                          <Card accent={fat.color}><MetricLabel>Fatigue</MetricLabel><BigNum color={fat.color}>{fat.label}</BigNum></Card>
-                          <Card accent={T.blue}><MetricLabel>Progress</MetricLabel><BigNum color={T.blue}>{progress}%</BigNum></Card>
-                          <Card accent={hc}><MetricLabel>Recovery Index</MetricLabel><BigNum color={hc}>{recovery.recovery_index ?? "—"}</BigNum></Card>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: isMobile ? 10 : 16, marginBottom: isMobile ? 16 : 24 }}>
+                          <Card accent={fat.color}><MetricLabel>Fatigue</MetricLabel><BigNum color={fat.color} size={isMobile ? 20 : 28}>{fat.label}</BigNum></Card>
+                          <Card accent={T.blue}><MetricLabel>Progress</MetricLabel><BigNum color={T.blue} size={isMobile ? 20 : 28}>{progress}%</BigNum></Card>
+                          <Card accent={hc}><MetricLabel>Recovery Index</MetricLabel><BigNum color={hc} size={isMobile ? 20 : 28}>{recovery.recovery_index ?? "—"}</BigNum></Card>
                         </div>
                         <SectionLabel>7-Day Plan</SectionLabel>
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 24 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fit, minmax(160px, 1fr))", gap: isMobile ? 10 : 12, marginBottom: isMobile ? 16 : 24 }}>
                           {(recovery.plan || []).map((item, i) => {
                             const isRest = item.toLowerCase().includes("rest"), isLight = item.toLowerCase().includes("light");
                             const dc = isRest ? T.blue : isLight ? T.amber : T.green;
                             const di = isRest ? "🛌" : isLight ? "🚶" : "🏃";
                             return (
                               <Card key={i} accent={dc}>
-                                <div style={{ fontSize: 10, color: T.muted, marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Day {i + 1} — {dayL[i] ?? ""}</div>
-                                <div style={{ fontSize: 16, marginBottom: 6 }}>{di}</div>
-                                <div style={{ fontSize: 13, color: T.text, lineHeight: 1.4 }}>{item}</div>
+                                <div style={{ fontSize: 10, color: T.muted, marginBottom: 4, textTransform: "uppercase", letterSpacing: 1 }}>Day {i + 1}</div>
+                                <div style={{ fontSize: 14, marginBottom: 4 }}>{di}</div>
+                                <div style={{ fontSize: isMobile ? 11 : 13, color: T.text, lineHeight: 1.4 }}>{item}</div>
                               </Card>
                             );
                           })}
                         </div>
                         <Card accent={T.green}>
                           <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                            <div style={{ width: 36, height: 36, borderRadius: "50%", background: T.greenLight, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>💬</div>
+                            <div style={{ width: 32, height: 32, borderRadius: "50%", background: T.greenLight, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>💬</div>
                             <div>
-                              <div style={{ fontSize: 12, fontWeight: 600, color: T.green, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.8 }}>Coach Note</div>
-                              <div style={{ fontSize: 13, color: T.muted, lineHeight: 1.6 }}>Prioritise sleep quality and avoid high-intensity sessions until day 7. Stay hydrated and listen to your body.</div>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: T.green, marginBottom: 4 }}>Coach Note</div>
+                              <div style={{ fontSize: 12, color: T.muted, lineHeight: 1.6 }}>Prioritise sleep quality and avoid high-intensity sessions until day 7. Stay hydrated and listen to your body.</div>
                             </div>
                           </div>
                         </Card>
@@ -973,30 +998,30 @@ export default function App() {
                       </div>
                     ) : (
                       <>
-                        <Card accent={T.green} style={{ marginBottom: 20 }}>
+                        <Card accent={T.green} style={{ marginBottom: isMobile ? 14 : 20 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
                             <div>
                               <MetricLabel>Current Goal</MetricLabel>
-                              <BigNum color={T.green} size={32}>{goal.goal || "Active Recovery"}</BigNum>
-                              <div style={{ fontSize: 13, color: T.blue, marginTop: 8 }}>Focus: {goal.focus || "Reduce load"}</div>
+                              <BigNum color={T.green} size={isMobile ? 24 : 32}>{goal.goal || "Active Recovery"}</BigNum>
+                              <div style={{ fontSize: 13, color: T.blue, marginTop: 6 }}>Focus: {goal.focus || "Reduce load"}</div>
                             </div>
-                            <div style={{ fontSize: 44 }}>🏆</div>
+                            <div style={{ fontSize: isMobile ? 32 : 44 }}>🏆</div>
                           </div>
                         </Card>
-                        <Card style={{ marginBottom: 16 }}>
+                        <Card style={{ marginBottom: isMobile ? 12 : 16 }}>
                           <MetricLabel>Action Plan</MetricLabel>
                           {(goal.plan || []).map((step, i) => {
                             const icons = ["💤","🗓️","🚶","💧","🧘","🏋️","📊","🎯"];
                             return (
-                              <div key={i} style={{ display: "flex", gap: 12, padding: "12px 0", borderBottom: i < goal.plan.length - 1 ? `1px solid ${T.border}` : "none", alignItems: "flex-start" }}>
-                                <div style={{ width: 32, height: 32, borderRadius: "50%", background: T.blueLight, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>{icons[i % icons.length]}</div>
-                                <div style={{ fontSize: 13, color: T.muted, paddingTop: 6, lineHeight: 1.5 }}>{step}</div>
+                              <div key={i} style={{ display: "flex", gap: 10, padding: "10px 0", borderBottom: i < goal.plan.length - 1 ? `1px solid ${T.border}` : "none", alignItems: "flex-start" }}>
+                                <div style={{ width: 28, height: 28, borderRadius: "50%", background: T.blueLight, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>{icons[i % icons.length]}</div>
+                                <div style={{ fontSize: 13, color: T.muted, paddingTop: 4, lineHeight: 1.5 }}>{step}</div>
                               </div>
                             );
                           })}
                         </Card>
                         {goal.explanation?.length > 0 && (
-                          <Card accent={T.purple} style={{ marginBottom: 16 }}>
+                          <Card accent={T.purple} style={{ marginBottom: isMobile ? 12 : 16 }}>
                             <MetricLabel>Why This Goal</MetricLabel>
                             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
                               {goal.explanation.map((r, i) => <Pill key={i} color={T.purple} bg={T.purpleLight}>{r}</Pill>)}
@@ -1015,6 +1040,16 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {/* ── Mobile Bottom Navigation ── */}
+      {isMobile && (
+        <MobileBottomNav
+          tab={tab} setTab={setTab}
+          fetchRecovery={fetchRecovery} fetchGoal={fetchGoal}
+          recovery={recovery} goal={goal}
+          loadingRec={loadingRec} loadingGoal={loadingGoal}
+        />
+      )}
     </>
   );
 }
