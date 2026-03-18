@@ -97,7 +97,11 @@ function SparkBar({ data, color, h = 44, labels }) {
         return (
           <g key={i}>
             <rect x={x} y={h - bh} width={bw} height={bh} rx="2" fill={color} opacity="0.85" />
-            {labels && <text x={x + bw / 2} y={h + 12} textAnchor="middle" fontSize="9" fill={T.muted} fontFamily="system-ui">{labels[i]}</text>}
+            {labels && (
+              <text x={x + bw / 2} y={h + 12} textAnchor="middle" fontSize="9" fill={T.muted} fontFamily="system-ui">
+                {labels[i]}
+              </text>
+            )}
           </g>
         );
       })}
@@ -194,41 +198,12 @@ function FeedbackWidget({ userId, goalName, onDone }) {
   );
 }
 
-// ── Auth Page (Sign In / Sign Up) ──────────────────────────────────────────────
-function AuthPage({ onLogin }) {
-  const [mode, setMode] = useState("login"); // "login" | "register"
-  const [email, setEmail] = useState("");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
-
-  const submit = async () => {
-    if (!email || !password) { setErr("Please fill in all fields"); return; }
-    if (mode === "register" && !username) { setErr("Please enter a username"); return; }
-    setBusy(true); setErr("");
-    try {
-      const endpoint = mode === "login" ? "/auth/login" : "/auth/register";
-      const body = mode === "login"
-        ? { email, password }
-        : { email, username, password };
-      const r = await fetch(`${API_URL}${endpoint}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.detail || "Something went wrong");
-      localStorage.setItem("acoach_token", d.token);
-      localStorage.setItem("acoach_user", JSON.stringify(d.user));
-      onLogin(d.user, d.token);
-    } catch (e) { setErr(e.message); }
-    finally { setBusy(false); }
-  };
-
+function LoginPage({ onLogin }) {
+  const [userId, setUserId] = useState(""), [users, setUsers] = useState([]), [busy, setBusy] = useState(false), [err, setErr] = useState("");
+  useEffect(() => { fetch(`${API_URL}/users`).then(r => r.json()).then(d => setUsers(d.users || [])).catch(() => {}); }, []);
+  const go = () => { if (!userId.trim()) { setErr("Please select a User ID"); return; } setBusy(true); setErr(""); setTimeout(() => { onLogin({ userId: userId.trim() }); setBusy(false); }, 380); };
   return (
     <div style={{ minHeight: "100vh", background: T.sidebar, display: "flex", fontFamily: "system-ui" }}>
-      {/* Left panel */}
       <div style={{ width: "55%", background: `linear-gradient(135deg, #0d6efd22 0%, transparent 60%), ${T.sidebar}`, display: "flex", alignItems: "center", justifyContent: "center", padding: 48, position: "relative", overflow: "hidden" }}>
         <svg style={{ position: "absolute", inset: 0, opacity: 0.04 }} width="100%" height="100%">
           <defs><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="0.5" /></pattern></defs>
@@ -242,13 +217,9 @@ function AuthPage({ onLogin }) {
               <div style={{ fontSize: 11, color: "#94a3b8", letterSpacing: 1.5 }}>AI FITNESS INTELLIGENCE</div>
             </div>
           </div>
-          <div style={{ fontSize: 36, fontWeight: 800, color: "#fff", lineHeight: 1.2, marginBottom: 20 }}>
-            Your personal<br /><span style={{ color: T.blue }}>fitness coach.</span>
-          </div>
-          <div style={{ fontSize: 14, color: "#94a3b8", lineHeight: 1.7, marginBottom: 40 }}>
-            AI-powered insights from your wearable data. Training readiness, recovery plans, and personalised goals — all in one place.
-          </div>
-          {["Training Readiness Score", "7-Day Recovery Plans", "AI Goal System", "Real-Time Fitbit Sync"].map(f => (
+          <div style={{ fontSize: 36, fontWeight: 800, color: "#fff", lineHeight: 1.2, marginBottom: 20 }}>Your personal<br /><span style={{ color: T.blue }}>fitness coach.</span></div>
+          <div style={{ fontSize: 14, color: "#94a3b8", lineHeight: 1.7, marginBottom: 40 }}>AI-powered insights from your wearable data. Training readiness, recovery plans, and personalised goals — all in one place.</div>
+          {["Training Readiness Score", "7-Day Recovery Plans", "AI Goal System", "Real-Time HRV & Trends"].map(f => (
             <div key={f} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
               <div style={{ width: 18, height: 18, borderRadius: "50%", background: T.blue + "30", border: `1px solid ${T.blue}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <div style={{ width: 6, height: 6, borderRadius: "50%", background: T.blue }} />
@@ -258,55 +229,26 @@ function AuthPage({ onLogin }) {
           ))}
         </div>
       </div>
-
-      {/* Right panel */}
       <div style={{ flex: 1, background: T.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 48 }}>
-        <div style={{ width: "100%", maxWidth: 380 }}>
+        <div style={{ width: "100%", maxWidth: 360 }}>
           <div style={{ marginBottom: 32 }}>
-            <div style={{ fontSize: 26, fontWeight: 700, color: T.text, marginBottom: 6, fontFamily: "'Nunito Sans', system-ui" }}>
-              {mode === "login" ? "Welcome back" : "Create account"}
-            </div>
-            <div style={{ fontSize: 14, color: T.muted }}>
-              {mode === "login" ? "Sign in to your ACoach account" : "Join ACoach and start training smarter"}
-            </div>
+            <div style={{ fontSize: 26, fontWeight: 700, color: T.text, marginBottom: 6, fontFamily: "'Nunito Sans', system-ui" }}>Welcome back</div>
+            <div style={{ fontSize: 14, color: T.muted }}>Select your profile to continue</div>
           </div>
-
-          {/* Toggle */}
-          <div style={{ display: "flex", background: T.border + "50", borderRadius: 10, padding: 4, marginBottom: 24 }}>
-            {["login", "register"].map(m => (
-              <button key={m} onClick={() => { setMode(m); setErr(""); }}
-                style={{ flex: 1, padding: "9px", borderRadius: 8, border: "none", background: mode === m ? T.card : "transparent", color: mode === m ? T.text : T.muted, fontSize: 13, fontWeight: mode === m ? 600 : 400, cursor: "pointer", transition: "all 0.15s", boxShadow: mode === m ? "0 1px 4px rgba(0,0,0,0.08)" : "none" }}>
-                {m === "login" ? "Sign In" : "Sign Up"}
-              </button>
-            ))}
-          </div>
-
           <Card style={{ padding: 28 }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {mode === "register" && (
-                <div>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: T.muted, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.8 }}>Username</label>
-                  <input value={username} onChange={e => setUsername(e.target.value)}
-                    placeholder="johndoe" style={{ width: "100%", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, padding: "11px 14px", color: T.text, fontSize: 14, boxSizing: "border-box", outline: "none", fontFamily: "system-ui" }} />
-                </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: T.muted, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.8 }}>User ID</label>
+              {users.length > 0 ? (
+                <select value={userId} onChange={e => setUserId(e.target.value)} style={{ width: "100%", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, padding: "11px 14px", color: userId ? T.text : T.muted, fontSize: 14, boxSizing: "border-box", outline: "none", cursor: "pointer" }}>
+                  <option value="">Select User ID…</option>
+                  {users.map(u => <option key={u} value={u}>{u}</option>)}
+                </select>
+              ) : (
+                <input value={userId} onChange={e => setUserId(e.target.value)} onKeyDown={e => e.key === "Enter" && go()} placeholder="Enter User ID" style={{ width: "100%", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, padding: "11px 14px", color: T.text, fontSize: 14, boxSizing: "border-box", outline: "none" }} />
               )}
-              <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: T.muted, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.8 }}>Email</label>
-                <input value={email} onChange={e => setEmail(e.target.value)} type="email"
-                  placeholder="you@example.com" style={{ width: "100%", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, padding: "11px 14px", color: T.text, fontSize: 14, boxSizing: "border-box", outline: "none", fontFamily: "system-ui" }} />
-              </div>
-              <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: T.muted, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.8 }}>Password</label>
-                <input value={password} onChange={e => setPassword(e.target.value)} type="password"
-                  onKeyDown={e => e.key === "Enter" && submit()}
-                  placeholder="••••••••" style={{ width: "100%", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, padding: "11px 14px", color: T.text, fontSize: 14, boxSizing: "border-box", outline: "none", fontFamily: "system-ui" }} />
-              </div>
-              {err && <div style={{ background: T.redLight, border: `1px solid ${T.red}40`, borderRadius: 8, padding: "9px 12px", color: T.red, fontSize: 12 }}>⚠ {err}</div>}
-              <button onClick={submit} disabled={busy}
-                style={{ width: "100%", background: busy ? T.border : T.blue, border: "none", borderRadius: 8, padding: 13, color: "#fff", fontFamily: "system-ui", fontSize: 14, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer", marginTop: 4 }}>
-                {busy ? "Please wait…" : mode === "login" ? "Sign In →" : "Create Account →"}
-              </button>
             </div>
+            {err && <div style={{ background: T.redLight, border: `1px solid ${T.red}40`, borderRadius: 8, padding: "9px 12px", color: T.red, fontSize: 12, marginBottom: 14 }}>⚠ {err}</div>}
+            <button onClick={go} disabled={busy} style={{ width: "100%", background: busy ? T.border : T.blue, border: "none", borderRadius: 8, padding: 13, color: "#fff", fontFamily: "system-ui", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>{busy ? "Loading…" : "Start Session →"}</button>
           </Card>
           <div style={{ textAlign: "center", marginTop: 20, fontSize: 12, color: T.subtle }}>Powered by wearable data • ACoach v2</div>
         </div>
@@ -327,26 +269,24 @@ function NavItem({ icon, label, active, onClick }) {
 }
 
 export default function App() {
-  const [authUser, setAuthUser] = useState(null);
-  const [token, setToken]       = useState(null);
-  const [data, setData]         = useState(null);
-  const [ts, setTs]             = useState(null);
-  const [recovery, setRecovery] = useState(null);
-  const [goal, setGoal]         = useState(null);
-  const [loading, setLoading]   = useState(false);
+  const [user, setUser]           = useState(null);
+  const [data, setData]           = useState(null);
+  const [ts, setTs]               = useState(null);
+  const [recovery, setRecovery]   = useState(null);
+  const [goal, setGoal]           = useState(null);
+  const [loading, setLoading]     = useState(false);
   const [loadingRec, setLoadingRec] = useState(false);
   const [loadingGoal, setLoadingGoal] = useState(false);
-  const [err, setErr]           = useState("");
-  const [tab, setTab]           = useState("home");
+  const [err, setErr]             = useState("");
+  const [tab, setTab]             = useState("home");
   const [showFeedback, setShowFeedback] = useState(false);
   const [animScore, setAnimScore] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [fitbitConnected, setFitbitConnected] = useState(false);
+
+  // ── NEW: Fitbit state ──
+  const [fitbitUser, setFitbitUser] = useState(null);
   const [fitbitData, setFitbitData] = useState(null);
   const [fitbitSyncing, setFitbitSyncing] = useState(false);
-  // Dataset user selector
-  const [datasetUsers, setDatasetUsers] = useState([]);
-  const [selectedDatasetUser, setSelectedDatasetUser] = useState(null);
 
   const hrData     = useRef(seeded(12345, 24, 58, 140));
   const sleepData  = useRef(seeded(12346, 7, 4, 9));
@@ -355,56 +295,15 @@ export default function App() {
   const hrvData    = useRef(seeded(12349, 14, 1, 4));
   const stressData = useRef(seeded(12350, 24, 10, 80));
 
-  // Restore session from localStorage
   useEffect(() => {
-    const savedToken = localStorage.getItem("acoach_token");
-    const savedUser  = localStorage.getItem("acoach_user");
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      setAuthUser(JSON.parse(savedUser));
-    }
-  }, []);
-
-  // Check Fitbit connection status when user logs in
-  useEffect(() => {
-    if (authUser) {
-      fetch(`${API_URL}/fitbit/status/${authUser.id}`)
-        .then(r => r.json())
-        .then(d => {
-          setFitbitConnected(d.connected);
-          if (d.connected) syncFitbit();
-        }).catch(() => {});
-      // Load dataset users
-      fetch(`${API_URL}/users`).then(r => r.json()).then(d => {
-        setDatasetUsers(d.users || []);
-        if (d.users?.length) {
-          setSelectedDatasetUser(d.users[0]);
-          fetchReport(d.users[0]);
-        }
-      }).catch(() => {});
-    }
-  }, [authUser]);
-
-  // Check URL for fitbit callback
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const dashUser = params.get("dashboard_user");
-    if (dashUser) {
-      setFitbitConnected(true);
-      window.history.replaceState({}, "", window.location.pathname);
-      syncFitbit();
-    }
-  }, []);
-
-  useEffect(() => {
-    const seed = parseInt(selectedDatasetUser) || 12345;
+    const seed = parseInt(user?.userId) || 12345;
     hrData.current     = seeded(seed,     24, 58,   140);
     sleepData.current  = seeded(seed + 1,  7,  4,     9);
     stepsData.current  = seeded(seed + 2,  7, 3000, 14000);
     stressData.current = seeded(seed + 3, 24, 10,    80);
     calData.current    = seeded(seed + 4,  7, 1600,  3200);
     hrvData.current    = seeded(seed + 5, 14, 1,      4);
-  }, [selectedDatasetUser]);
+  }, [user]);
 
   useEffect(() => {
     const score = typeof data?.health === "number" ? data.health : data?.health?.score ?? data?.health?.health_score ?? null;
@@ -415,13 +314,25 @@ export default function App() {
     return () => cancelAnimationFrame(raf);
   }, [data?.health]);
 
+  // ── NEW: Read fitbit_user from URL on load ──
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const fuid = params.get("fitbit_user");
+    if (fuid) {
+      setFitbitUser(fuid);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
+  // ── NEW: Auto-sync when fitbit connects ──
+  useEffect(() => {
+    if (fitbitUser) syncFitbit(fitbitUser);
+  }, [fitbitUser]);
+
   const fetchReport = async uid => {
     setErr(""); setData(null); setTs(null); setRecovery(null); setGoal(null); setLoading(true);
     try {
-      const [coachRes, tsRes] = await Promise.all([
-        fetch(`${API_URL}/coach/${uid}`),
-        fetch(`${API_URL}/timeseries/${uid}`)
-      ]);
+      const [coachRes, tsRes] = await Promise.all([fetch(`${API_URL}/coach/${uid}`), fetch(`${API_URL}/timeseries/${uid}`)]);
       if (!coachRes.ok) throw new Error(`Error ${coachRes.status}`);
       setData(await coachRes.json());
       if (tsRes.ok) setTs(await tsRes.json());
@@ -432,42 +343,35 @@ export default function App() {
 
   const fetchRecovery = async () => {
     setLoadingRec(true);
-    try { const r = await fetch(`${API_URL}/recovery/${selectedDatasetUser}`); if (r.ok) setRecovery(await r.json()); else throw new Error(); }
+    try { const r = await fetch(`${API_URL}/recovery/${user.userId}`); if (r.ok) setRecovery(await r.json()); else throw new Error(); }
     catch { setRecovery({ plan: ["Full Rest + Sleep","Full Rest + Sleep","Light Activity (20–30 min)","Light Activity (20–30 min)","Light Activity (20–30 min)","Light Activity (20–30 min)","Return to Training"], fatigue: 2 }); }
     finally { setLoadingRec(false); setTab("recovery"); }
   };
 
   const fetchGoal = async () => {
     setLoadingGoal(true); setShowFeedback(false);
-    try { const r = await fetch(`${API_URL}/goal/${selectedDatasetUser}`); if (r.ok) setGoal(await r.json()); else throw new Error(); }
+    try { const r = await fetch(`${API_URL}/goal/${user.userId}`); if (r.ok) setGoal(await r.json()); else throw new Error(); }
     catch { setGoal({ goal: "Active Recovery", focus: "Reduce load", plan: ["Sleep 8+ hours nightly","Take 2 full rest days","Light walks 20–30 min","Drink 3L water daily","Breathing exercises"], explanation: ["High fatigue","Low step count","HR trend elevated"] }); }
     finally { setLoadingGoal(false); setTab("goal"); }
   };
 
-  const syncFitbit = async () => {
-    if (!authUser) return;
+  // ── NEW: Fitbit sync function ──
+  const syncFitbit = async (fuid) => {
     setFitbitSyncing(true);
     try {
-      const r = await fetch(`${API_URL}/fitbit/sync/${authUser.id}`);
-      if (r.ok) { const d = await r.json(); setFitbitData(d.data); }
+      const r = await fetch(`${API_URL}/fitbit/sync/${fuid}`);
+      if (r.ok) {
+        const d = await r.json();
+        setFitbitData(d.data);
+      }
     } catch {}
     finally { setFitbitSyncing(false); }
   };
 
-  const handleLogin = (user, tok) => {
-    setAuthUser(user);
-    setToken(tok);
-  };
+  const handleLogin  = u => { setUser(u); fetchReport(u.userId); };
+  const handleLogout = () => { setUser(null); setData(null); setTs(null); setRecovery(null); setGoal(null); };
 
-  const handleLogout = () => {
-    localStorage.removeItem("acoach_token");
-    localStorage.removeItem("acoach_user");
-    setAuthUser(null); setToken(null); setData(null);
-    setTs(null); setRecovery(null); setGoal(null);
-    setFitbitConnected(false); setFitbitData(null);
-  };
-
-  if (!authUser) return <AuthPage onLogin={handleLogin} />;
+  if (!user) return <LoginPage onLogin={handleLogin} />;
 
   const fat      = fatigueInfo(data?.burnout);
   const progress = data?.progress ?? 0;
@@ -484,16 +388,16 @@ export default function App() {
   const hrvChart    = ts?.hrv?.length      ? ts.hrv      : hrvData.current;
   const stressChart = stressData.current;
 
-  const tsLen       = Math.min(sleepChart.length, 7);
-  const chartLabels = dayL.slice(0, tsLen);
-  const latestHrv   = hrvChart.length > 0 ? hrvChart[hrvChart.length - 1] : null;
-  const latestHrv7d = ts?.hrv_7d?.length ? ts.hrv_7d[ts.hrv_7d.length - 1] : latestHrv;
-  const hrvColor    = latestHrv > 2.5 ? T.green : latestHrv > 1.5 ? T.amber : T.red;
-  const hrvStatus   = latestHrv > 2.5 ? "Balanced" : latestHrv > 1.5 ? "Low" : latestHrv ? "Poor" : "N/A";
-  const tsStatus    = (data?.burnout || "").toUpperCase().includes("HIGH") ? "Overreaching"
-                    : (data?.burnout || "").toUpperCase().includes("MODERATE") ? "Peaking"
-                    : (data?.risk || "").toUpperCase().includes("LOW") ? "Productive"
-                    : "Recovery";
+  const tsLen        = Math.min(sleepChart.length, 7);
+  const chartLabels  = dayL.slice(0, tsLen);
+  const latestHrv    = hrvChart.length > 0 ? hrvChart[hrvChart.length - 1] : null;
+  const latestHrv7d  = ts?.hrv_7d?.length ? ts.hrv_7d[ts.hrv_7d.length - 1] : latestHrv;
+  const hrvColor     = latestHrv > 2.5 ? T.green : latestHrv > 1.5 ? T.amber : T.red;
+  const hrvStatus    = latestHrv > 2.5 ? "Balanced" : latestHrv > 1.5 ? "Low" : latestHrv ? "Poor" : "N/A";
+  const tsStatus     = (data?.burnout || "").toUpperCase().includes("HIGH") ? "Overreaching"
+                     : (data?.burnout || "").toUpperCase().includes("MODERATE") ? "Peaking"
+                     : (data?.risk || "").toUpperCase().includes("LOW") ? "Productive"
+                     : "Recovery";
 
   const navItems = [
     { id: "home",     icon: "⊞",  label: "Home"        },
@@ -534,12 +438,12 @@ export default function App() {
             <div style={{ padding: "12px 16px", borderBottom: "1px solid #ffffff10" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{ width: 32, height: 32, borderRadius: "50%", background: T.blue + "30", border: `1px solid ${T.blue}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: T.blue, flexShrink: 0 }}>
-                  {authUser.username?.slice(0, 2).toUpperCase() || "??"}
+                  {user.userId.toString().slice(-2)}
                 </div>
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0" }}>{authUser.username}</div>
-                  <div style={{ fontSize: 10, color: T.muted }}>{authUser.email}</div>
-                  {fitbitConnected && <div style={{ fontSize: 10, color: T.cyan }}>⌚ Fitbit connected</div>}
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0" }}>User {user.userId}</div>
+                  {ts && <div style={{ fontSize: 10, color: T.green }}>● Live data</div>}
+                  {fitbitUser && <div style={{ fontSize: 10, color: T.cyan }}>⌚ Fitbit: {fitbitUser}</div>}
                 </div>
               </div>
             </div>
@@ -561,30 +465,21 @@ export default function App() {
 
         {/* ── Main ── */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-          {/* Header */}
           <div style={{ background: T.card, borderBottom: `1px solid ${T.border}`, padding: "12px 24px", display: "flex", alignItems: "center", gap: 12, position: "sticky", top: 0, zIndex: 100 }}>
             <button onClick={() => setSidebarOpen(v => !v)} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${T.border}`, background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: T.muted }}>☰</button>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 18, fontWeight: 700, color: T.text, fontFamily: "'Nunito Sans', system-ui" }}>{tabTitle}</div>
-              <div style={{ fontSize: 12, color: T.muted }}>{authUser.username} • {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</div>
+              <div style={{ fontSize: 12, color: T.muted }}>User {user.userId} • {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</div>
             </div>
-            {/* Dataset user selector */}
-            {datasetUsers.length > 0 && (
-              <select value={selectedDatasetUser || ""} onChange={e => { setSelectedDatasetUser(e.target.value); fetchReport(e.target.value); }}
-                style={{ background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: T.text, cursor: "pointer", outline: "none" }}>
-                {datasetUsers.map(u => <option key={u} value={u}>Dataset: {u}</option>)}
-              </select>
-            )}
-            {/* Fitbit button */}
-            <button onClick={() => window.open(`${API_URL}/fitbit/login/${authUser.id}`, "_self")}
-              style={{ background: fitbitConnected ? T.greenLight : T.blueLight, border: `1px solid ${fitbitConnected ? T.green : T.blue}`, borderRadius: 8, padding: "6px 14px", color: fitbitConnected ? T.green : T.blue, fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+            {/* ── NEW: Fitbit connect button in header ── */}
+            <button onClick={() => window.open(`${API_URL}/fitbit/login`, "_self")}
+              style={{ background: fitbitUser ? T.greenLight : T.blueLight, border: `1px solid ${fitbitUser ? T.green : T.blue}`, borderRadius: 8, padding: "6px 14px", color: fitbitUser ? T.green : T.blue, fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
               <span>⌚</span>
-              <span>{fitbitConnected ? "Fitbit ✓" : "Connect Fitbit"}</span>
+              <span>{fitbitUser ? `Fitbit: ${fitbitUser}` : "Connect Fitbit"}</span>
             </button>
             {err && <div style={{ background: T.redLight, color: T.red, borderRadius: 8, padding: "6px 12px", fontSize: 12 }}>⚠ {err}</div>}
           </div>
 
-          {/* Page content */}
           <div style={{ flex: 1, padding: "24px", overflowY: "auto" }}>
             {loading && (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "50vh", gap: 12 }}>
@@ -595,7 +490,6 @@ export default function App() {
 
             {data && !loading && (
               <>
-                {/* ══ HOME ══ */}
                 {tab === "home" && (
                   <div className="fade">
                     {/* Summary cards */}
@@ -639,43 +533,51 @@ export default function App() {
                       </Card>
                     </div>
 
-                    {/* Fitbit Live Card */}
-                    <SectionLabel>Fitbit Live — Your Device</SectionLabel>
-                    <Card accent={fitbitConnected ? T.green : T.blue} style={{ marginBottom: 24 }}>
+                    {/* ── NEW: Fitbit Live Card ── */}
+                    <SectionLabel>Fitbit Live</SectionLabel>
+                    <Card accent={fitbitUser ? T.green : T.blue} style={{ marginBottom: 24 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
                         <div style={{ flex: 1 }}>
-                          <MetricLabel>TODAY'S DATA FROM YOUR FITBIT</MetricLabel>
-                          {fitbitConnected ? (
-                            fitbitData ? (
-                              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginTop: 10 }}>
-                                {[
-                                  { label: "Steps",    val: fitbitData.TotalSteps?.toLocaleString() ?? "—",   icon: "👟" },
-                                  { label: "Calories", val: fitbitData.Calories?.toLocaleString() ?? "—",     icon: "🔥" },
-                                  { label: "Sleep",    val: fitbitData.TotalMinutesAsleep ? `${Math.floor(fitbitData.TotalMinutesAsleep/60)}h ${fitbitData.TotalMinutesAsleep%60}m` : "—", icon: "😴" },
-                                  { label: "Avg HR",   val: fitbitData.AvgHeartRate ? `${Math.round(fitbitData.AvgHeartRate)} bpm` : "—", icon: "❤️" },
-                                ].map(m => (
-                                  <div key={m.label} style={{ background: T.bg, borderRadius: 8, padding: "10px 12px" }}>
-                                    <div style={{ fontSize: 16, marginBottom: 4 }}>{m.icon}</div>
-                                    <div style={{ fontSize: 16, fontWeight: 700, color: T.text }}>{m.val}</div>
-                                    <div style={{ fontSize: 10, color: T.muted }}>{m.label}</div>
-                                  </div>
-                                ))}
+                          <MetricLabel>FITBIT TODAY</MetricLabel>
+                          {fitbitUser ? (
+                            <div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                                <div style={{ width: 8, height: 8, borderRadius: "50%", background: T.green }} />
+                                <BigNum color={T.green} size={16}>Connected — {fitbitUser}</BigNum>
                               </div>
-                            ) : <SubText>{fitbitSyncing ? "Syncing your Fitbit data…" : "Fitbit connected — click Sync to load today's data"}</SubText>
+                              {fitbitData ? (
+                                <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
+                                  {[
+                                    { label: "Steps",    val: fitbitData.TotalSteps?.toLocaleString() ?? "—", icon: "👟" },
+                                    { label: "Calories", val: fitbitData.Calories?.toLocaleString() ?? "—",   icon: "🔥" },
+                                    { label: "Sleep",    val: fitbitData.TotalMinutesAsleep ? `${Math.floor(fitbitData.TotalMinutesAsleep/60)}h ${fitbitData.TotalMinutesAsleep%60}m` : "—", icon: "😴" },
+                                    { label: "Avg HR",   val: fitbitData.AvgHeartRate ? `${Math.round(fitbitData.AvgHeartRate)} bpm` : "—", icon: "❤️" },
+                                  ].map(m => (
+                                    <div key={m.label} style={{ background: T.bg, borderRadius: 8, padding: "10px 12px" }}>
+                                      <div style={{ fontSize: 16, marginBottom: 4 }}>{m.icon}</div>
+                                      <div style={{ fontSize: 16, fontWeight: 700, color: T.text }}>{m.val}</div>
+                                      <div style={{ fontSize: 10, color: T.muted }}>{m.label}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <SubText>{fitbitSyncing ? "Syncing…" : "No data synced yet"}</SubText>
+                              )}
+                            </div>
                           ) : (
-                            <SubText>Connect your personal Fitbit to see today's real-time data here</SubText>
+                            <SubText>Connect your Fitbit device for real-time today's data</SubText>
                           )}
                         </div>
                         <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-                          {fitbitConnected && (
-                            <button onClick={syncFitbit}
+                          {fitbitUser && (
+                            <button onClick={() => syncFitbit(fitbitUser)}
                               style={{ background: T.greenLight, border: `1px solid ${T.green}`, borderRadius: 8, padding: "8px 16px", color: T.green, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
                               {fitbitSyncing ? "Syncing…" : "🔄 Sync"}
                             </button>
                           )}
-                          <button onClick={() => window.open(`${API_URL}/fitbit/login/${authUser.id}`, "_self")}
-                            style={{ background: fitbitConnected ? T.bg : T.blue, border: `1px solid ${fitbitConnected ? T.border : T.blue}`, borderRadius: 8, padding: "8px 16px", color: fitbitConnected ? T.muted : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-                            {fitbitConnected ? "Reconnect" : "🔗 Connect Fitbit"}
+                          <button onClick={() => window.open(`${API_URL}/fitbit/login`, "_self")}
+                            style={{ background: fitbitUser ? T.bg : T.blue, border: `1px solid ${fitbitUser ? T.border : T.blue}`, borderRadius: 8, padding: "8px 16px", color: fitbitUser ? T.muted : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                            {fitbitUser ? "Reconnect" : "🔗 Connect Fitbit"}
                           </button>
                         </div>
                       </div>
@@ -806,6 +708,9 @@ export default function App() {
                         <BigNum size={28}>{data.profile?.avg_hr ?? 72} <span style={{ fontSize: 14, fontWeight: 400, color: T.muted }}>bpm</span></BigNum>
                         <SubText>{Math.round((data.profile?.avg_hr ?? 72) * 0.65)} bpm Resting</SubText>
                         <div style={{ marginTop: 10, minHeight: 48 }}><SparkLine data={hrChart} color={T.red} h={48} /></div>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: T.subtle, marginTop: 4 }}>
+                          <span>{ts?.dates?.[0] ?? "—"}</span><span>{ts?.dates?.[ts.dates.length - 1] ?? "—"}</span>
+                        </div>
                       </Card>
                       <Card>
                         <MetricLabel>⚡ Body Battery</MetricLabel>
@@ -870,8 +775,10 @@ export default function App() {
                       </Card>
                       <Card style={{ gridColumn: "span 2" }}>
                         <MetricLabel>🔥 Calories</MetricLabel>
-                        <BigNum size={26}>{(data.profile?.avg_cal ?? 2200).toLocaleString()} <span style={{ fontSize: 14, fontWeight: 400, color: T.muted }}>kcal avg</span></BigNum>
-                        <div style={{ minHeight: 70, marginTop: 10 }}><SparkBar data={calChart.slice(0, 7)} color={T.orange} h={56} labels={chartLabels} /></div>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+                          <BigNum size={26}>{(data.profile?.avg_cal ?? 2200).toLocaleString()} <span style={{ fontSize: 14, fontWeight: 400, color: T.muted }}>kcal avg</span></BigNum>
+                        </div>
+                        <div style={{ minHeight: 70 }}><SparkBar data={calChart.slice(0, 7)} color={T.orange} h={56} labels={chartLabels} /></div>
                       </Card>
                       {data.trends && (
                         <Card style={{ gridColumn: "span 2" }}>
@@ -997,7 +904,7 @@ export default function App() {
                         )}
                         {!showFeedback
                           ? <button onClick={() => setShowFeedback(true)} style={{ width: "100%", background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: 13, color: T.muted, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>📝 Give Feedback on this Goal</button>
-                          : <FeedbackWidget userId={selectedDatasetUser} goalName={goal.goal} onDone={() => setShowFeedback(false)} />}
+                          : <FeedbackWidget userId={user.userId} goalName={goal.goal} onDone={() => setShowFeedback(false)} />}
                       </>
                     )}
                   </div>
