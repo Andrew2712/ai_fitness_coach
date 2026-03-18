@@ -36,7 +36,7 @@ def exchange_code(code: str) -> dict:
 def save_tokens(tokens: dict, user_id: str):
     """Save tokens to PostgreSQL database."""
     try:
-        from database import SessionLocal, DBUser
+        from database import SessionLocal, User as DBUser
         db = SessionLocal()
         user = db.query(DBUser).filter(DBUser.id == int(user_id)).first()
         if user:
@@ -51,7 +51,7 @@ def save_tokens(tokens: dict, user_id: str):
 def load_tokens(user_id: str) -> dict:
     """Load tokens from PostgreSQL database."""
     try:
-        from database import SessionLocal, DBUser
+        from database import SessionLocal, User as DBUser
         db = SessionLocal()
         user = db.query(DBUser).filter(DBUser.id == int(user_id)).first()
         db.close()
