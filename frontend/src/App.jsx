@@ -360,8 +360,16 @@ export default function App() {
     const savedToken = localStorage.getItem("acoach_token");
     const savedUser  = localStorage.getItem("acoach_user");
     if (savedToken && savedUser) {
+      const parsedUser = JSON.parse(savedUser);
       setToken(savedToken);
-      setAuthUser(JSON.parse(savedUser));
+      setAuthUser(parsedUser);
+      // Check Fitbit status immediately on restore
+      fetch(`${API_URL}/fitbit/status/${parsedUser.id}`)
+        .then(r => r.json())
+        .then(d => {
+          setFitbitConnected(d.connected);
+          if (d.connected) syncFitbit();
+        }).catch(() => {});
     }
   }, []);
 
