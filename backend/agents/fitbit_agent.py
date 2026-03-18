@@ -1,15 +1,12 @@
-# agents/fitbit_agent.py
-
 import os, requests, json
 from datetime import date
 
 REDIRECT_URI = "https://aifitnesscoach-production-373b.up.railway.app/fitbit/callback"
-TOKEN_FILE   = os.path.join(os.path.dirname(__file__), "..", "..", "data", "fitbit_tokens.json")
 SCOPE        = "activity sleep heartrate profile"
 
-def get_auth_url():
-    client_id = os.getenv("FITBIT_CLIENT_ID")        # ✅ read at runtime
-    return (
+def get_auth_url(state=None):
+    client_id = os.getenv("FITBIT_CLIENT_ID")
+    url = (
         f"https://www.fitbit.com/oauth2/authorize"
         f"?response_type=code"
         f"&client_id={client_id}"
@@ -17,9 +14,12 @@ def get_auth_url():
         f"&scope={SCOPE.replace(' ', '%20')}"
         f"&expires_in=604800"
     )
+    if state:
+        url += f"&state={state}"
+    return url
 
 def exchange_code(code: str) -> dict:
-    client_id     = os.getenv("FITBIT_CLIENT_ID")    # ✅ read at runtime
+    client_id     = os.getenv("FITBIT_CLIENT_ID")
     client_secret = os.getenv("FITBIT_CLIENT_SECRET")
     r = requests.post(
         "https://api.fitbit.com/oauth2/token",
@@ -31,12 +31,43 @@ def exchange_code(code: str) -> dict:
         },
         auth=(client_id, client_secret)
     )
-    tokens = r.json()
-    save_tokens(tokens)
-    return tokens
+    return r.json()
+
+def save_tokens(tokens: dict, user_id: str):
+    """Save tokens to PostgreSQL database."""
+    try:
+        from database import SessionLocal, DBUser
+        db = SessionLocal()
+        user = db.query(DBUser).filter(DBUser.id == int(user_id)).first()
+        if user:
+            user.fitbit_user_id      = tokens.get("user_id")
+            user.fitbit_access_token  = tokens.get("access_token")
+            user.fitbit_refresh_token = tokens.get("refresh_token")
+            db.commit()
+        db.close()
+    except Exception as e:
+        print(f"Error saving tokens to DB: {e}")
+
+def load_tokens(user_id: str) -> dict:
+    """Load tokens from PostgreSQL database."""
+    try:
+        from database import SessionLocal, DBUser
+        db = SessionLocal()
+        user = db.query(DBUser).filter(DBUser.id == int(user_id)).first()
+        db.close()
+        if user and user.fitbit_access_token:
+            return {
+                "access_token":  user.fitbit_access_token,
+                "refresh_token": user.fitbit_refresh_token,
+                "user_id":       user.fitbit_user_id,
+            }
+        return {}
+    except Exception as e:
+        print(f"Error loading tokens from DB: {e}")
+        return {}
 
 def refresh_tokens(user_id: str) -> dict:
-    client_id     = os.getenv("FITBIT_CLIENT_ID")    # ✅ read at runtime
+    client_id     = os.getenv("FITBIT_CLIENT_ID")
     client_secret = os.getenv("FITBIT_CLIENT_SECRET")
     tokens = load_tokens(user_id)
     r = requests.post(
@@ -50,23 +81,6 @@ def refresh_tokens(user_id: str) -> dict:
     new_tokens = r.json()
     save_tokens(new_tokens, user_id)
     return new_tokens
-
-def save_tokens(tokens: dict, user_id: str = None):
-    all_tokens = {}
-    if os.path.exists(TOKEN_FILE):
-        with open(TOKEN_FILE) as f:
-            all_tokens = json.load(f)
-    uid = user_id or tokens.get("user_id", "default")
-    all_tokens[uid] = tokens
-    os.makedirs(os.path.dirname(TOKEN_FILE), exist_ok=True)
-    with open(TOKEN_FILE, "w") as f:
-        json.dump(all_tokens, f, indent=2)
-
-def load_tokens(user_id: str) -> dict:
-    if not os.path.exists(TOKEN_FILE):
-        return {}
-    with open(TOKEN_FILE) as f:
-        return json.load(f).get(user_id, {})
 
 def fetch_today(user_id: str) -> dict:
     tokens = load_tokens(user_id)
