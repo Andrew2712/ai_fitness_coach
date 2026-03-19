@@ -25,6 +25,8 @@ const T = {
   cyanLight: "#cffafe",
   orange:    "#ea580c",
   orangeLight:"#ffedd5",
+  strava:    "#fc4c02",
+  stravaLight:"#fff0eb",
 };
 
 function riskColor(v) {
@@ -61,7 +63,6 @@ function seeded(seed, n, lo, hi) {
   });
 }
 
-// ── Responsive hook ────────────────────────────────────────────────────────────
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   useEffect(() => {
@@ -180,6 +181,70 @@ function Pill({ children, color, bg }) {
   return <span style={{ display: "inline-block", background: bg || color + "18", color, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 600, fontFamily: "system-ui" }}>{children}</span>;
 }
 
+// ── Strava Logo SVG ────────────────────────────────────────────────────────────
+function StravaIcon({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={T.strava}>
+      <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169" />
+    </svg>
+  );
+}
+
+// ── Strava Card Component ──────────────────────────────────────────────────────
+function StravaCard({ authUser, stravaConnected, stravaData, stravaSyncing, onSync, isMobile }) {
+  return (
+    <Card accent={stravaConnected ? T.strava : T.border} style={{ marginBottom: isMobile ? 16 : 24 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <StravaIcon size={20} />
+            <MetricLabel>STRAVA</MetricLabel>
+            {stravaConnected && <span style={{ fontSize: 10, background: T.stravaLight, color: T.strava, borderRadius: 20, padding: "2px 8px", fontWeight: 600 }}>Connected</span>}
+          </div>
+          {stravaConnected ? (
+            stravaData ? (
+              <>
+                <div style={{ fontSize: 12, color: T.muted, marginBottom: 10 }}>
+                  {stravaData.athlete} • {stravaData.ytd_runs} runs this year • {stravaData.ytd_km} km YTD
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: 8 }}>
+                  {[
+                    { label: "Activities",  val: `${stravaData.activities_7d}`,        sub: "last 7 days", icon: "🏃" },
+                    { label: "Distance",    val: `${stravaData.distance_7d_km} km`,    sub: "last 7 days", icon: "📍" },
+                    { label: "Time",        val: `${stravaData.time_7d_min} min`,       sub: "moving time",  icon: "⏱️" },
+                    { label: "Avg HR",      val: stravaData.avg_hr ? `${stravaData.avg_hr} bpm` : "—", sub: "heart rate", icon: "❤️" },
+                  ].map(m => (
+                    <div key={m.label} style={{ background: T.stravaLight, borderRadius: 8, padding: "10px 12px" }}>
+                      <div style={{ fontSize: 14, marginBottom: 2 }}>{m.icon}</div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: T.strava }}>{m.val}</div>
+                      <div style={{ fontSize: 10, color: T.muted }}>{m.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : <SubText>{stravaSyncing ? "Syncing Strava data…" : "Click Sync to load your activities"}</SubText>
+          ) : (
+            <SubText>Connect your Strava account to see your running and cycling data here</SubText>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+          {stravaConnected && (
+            <button onClick={onSync}
+              style={{ background: T.stravaLight, border: `1px solid ${T.strava}`, borderRadius: 8, padding: "8px 12px", color: T.strava, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+              {stravaSyncing ? "…" : "🔄"}
+            </button>
+          )}
+          <button onClick={() => window.location.href = `${API_URL}/strava/login/${authUser.id}`}
+            style={{ background: stravaConnected ? T.bg : T.strava, border: `1px solid ${stravaConnected ? T.border : T.strava}`, borderRadius: 8, padding: "8px 14px", color: stravaConnected ? T.muted : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+            <StravaIcon size={14} />
+            <span>{stravaConnected ? "Reconnect" : "Connect Strava"}</span>
+          </button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 function FeedbackWidget({ userId, goalName, onDone }) {
   const [sel, setSel] = useState(null), [comment, setComment] = useState(""), [sent, setSent] = useState(false), [busy, setBusy] = useState(false);
   const opts = [{ r: 1, e: "✓", l: "Yes" }, { r: 2, e: "~", l: "Partially" }, { r: 3, e: "✗", l: "No" }];
@@ -205,7 +270,6 @@ function FeedbackWidget({ userId, goalName, onDone }) {
   );
 }
 
-// ── Auth Page ──────────────────────────────────────────────────────────────────
 function AuthPage({ onLogin }) {
   const isMobile = useIsMobile();
   const [mode, setMode] = useState("login");
@@ -234,7 +298,6 @@ function AuthPage({ onLogin }) {
 
   return (
     <div style={{ minHeight: "100vh", background: T.sidebar, display: "flex", flexDirection: isMobile ? "column" : "row", fontFamily: "system-ui" }}>
-      {/* Left panel — hidden on mobile */}
       {!isMobile && (
         <div style={{ width: "55%", background: `linear-gradient(135deg, #0d6efd22 0%, transparent 60%), ${T.sidebar}`, display: "flex", alignItems: "center", justifyContent: "center", padding: 48, position: "relative", overflow: "hidden" }}>
           <svg style={{ position: "absolute", inset: 0, opacity: 0.04 }} width="100%" height="100%">
@@ -251,7 +314,7 @@ function AuthPage({ onLogin }) {
             </div>
             <div style={{ fontSize: 36, fontWeight: 800, color: "#fff", lineHeight: 1.2, marginBottom: 20 }}>Your personal<br /><span style={{ color: T.blue }}>fitness coach.</span></div>
             <div style={{ fontSize: 14, color: "#94a3b8", lineHeight: 1.7, marginBottom: 40 }}>AI-powered insights from your wearable data. Training readiness, recovery plans, and personalised goals — all in one place.</div>
-            {["Training Readiness Score", "7-Day Recovery Plans", "AI Goal System", "Real-Time Fitbit Sync"].map(f => (
+            {["Training Readiness Score", "7-Day Recovery Plans", "AI Goal System", "Fitbit & Strava Sync"].map(f => (
               <div key={f} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
                 <div style={{ width: 18, height: 18, borderRadius: "50%", background: T.blue + "30", border: `1px solid ${T.blue}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <div style={{ width: 6, height: 6, borderRadius: "50%", background: T.blue }} />
@@ -262,11 +325,8 @@ function AuthPage({ onLogin }) {
           </div>
         </div>
       )}
-
-      {/* Right panel */}
       <div style={{ flex: 1, background: T.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: isMobile ? "32px 20px" : 48 }}>
         <div style={{ width: "100%", maxWidth: 380 }}>
-          {/* Mobile logo */}
           {isMobile && (
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 32, justifyContent: "center" }}>
               <div style={{ width: 44, height: 44, borderRadius: 14, background: T.blue, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 900, color: "#fff" }}>A</div>
@@ -282,7 +342,6 @@ function AuthPage({ onLogin }) {
             </div>
             <div style={{ fontSize: 14, color: T.muted }}>{mode === "login" ? "Sign in to your ACoach account" : "Join ACoach and train smarter"}</div>
           </div>
-          {/* Toggle */}
           <div style={{ display: "flex", background: T.border + "50", borderRadius: 10, padding: 4, marginBottom: 24 }}>
             {["login", "register"].map(m => (
               <button key={m} onClick={() => { setMode(m); setErr(""); }}
@@ -315,6 +374,20 @@ function AuthPage({ onLogin }) {
                 style={{ width: "100%", background: busy ? T.border : T.blue, border: "none", borderRadius: 8, padding: 13, color: "#fff", fontFamily: "system-ui", fontSize: 14, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer", marginTop: 4 }}>
                 {busy ? "Please wait…" : mode === "login" ? "Sign In →" : "Create Account →"}
               </button>
+
+              {/* Divider */}
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ flex: 1, height: 1, background: T.border }} />
+                <span style={{ fontSize: 12, color: T.muted }}>or continue with</span>
+                <div style={{ flex: 1, height: 1, background: T.border }} />
+              </div>
+
+              {/* Strava OAuth login */}
+              <button onClick={() => window.location.href = `${API_URL}/strava/login/new`}
+                style={{ width: "100%", background: T.strava, border: "none", borderRadius: 8, padding: 13, color: "#fff", fontFamily: "system-ui", fontSize: 14, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                <StravaIcon size={18} />
+                <span>Continue with Strava</span>
+              </button>
             </div>
           </Card>
           <div style={{ textAlign: "center", marginTop: 20, fontSize: 12, color: T.subtle }}>Powered by wearable data • ACoach v2</div>
@@ -324,7 +397,6 @@ function AuthPage({ onLogin }) {
   );
 }
 
-// ── Mobile Bottom Nav ──────────────────────────────────────────────────────────
 function MobileBottomNav({ tab, setTab, fetchRecovery, fetchGoal, recovery, goal, loadingRec, loadingGoal }) {
   const items = [
     { id: "home",     icon: "⊞", label: "Home"     },
@@ -350,7 +422,6 @@ function MobileBottomNav({ tab, setTab, fetchRecovery, fetchGoal, recovery, goal
   );
 }
 
-// ── Desktop Sidebar Nav Item ───────────────────────────────────────────────────
 function NavItem({ icon, label, active, onClick }) {
   const [hover, setHover] = useState(false);
   return (
@@ -364,26 +435,28 @@ function NavItem({ icon, label, active, onClick }) {
 
 export default function App() {
   const isMobile = useIsMobile();
-  const [authUser, setAuthUser] = useState(null);
-  const [token, setToken]       = useState(null);
-  const [data, setData]         = useState(null);
-  const [ts, setTs]             = useState(null);
-  const [recovery, setRecovery] = useState(null);
-  const [goal, setGoal]         = useState(null);
-  const [loading, setLoading]   = useState(false);
+  const [authUser, setAuthUser]   = useState(null);
+  const [token, setToken]         = useState(null);
+  const [data, setData]           = useState(null);
+  const [ts, setTs]               = useState(null);
+  const [recovery, setRecovery]   = useState(null);
+  const [goal, setGoal]           = useState(null);
+  const [loading, setLoading]     = useState(false);
   const [loadingRec, setLoadingRec] = useState(false);
   const [loadingGoal, setLoadingGoal] = useState(false);
-  const [err, setErr]           = useState("");
-  const [tab, setTab]           = useState("home");
+  const [err, setErr]             = useState("");
+  const [tab, setTab]             = useState("home");
   const [showFeedback, setShowFeedback] = useState(false);
   const [animScore, setAnimScore] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [fitbitConnected, setFitbitConnected] = useState(false);
   const [fitbitData, setFitbitData] = useState(null);
   const [fitbitSyncing, setFitbitSyncing] = useState(false);
+  const [stravaConnected, setStravaConnected] = useState(false);
+  const [stravaData, setStravaData] = useState(null);
+  const [stravaSyncing, setStravaSyncing] = useState(false);
   const [datasetUsers, setDatasetUsers] = useState([]);
   const [selectedDatasetUser, setSelectedDatasetUser] = useState(null);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const hrData     = useRef(seeded(12345, 24, 58, 140));
   const sleepData  = useRef(seeded(12346, 7, 4, 9));
@@ -392,7 +465,6 @@ export default function App() {
   const hrvData    = useRef(seeded(12349, 14, 1, 4));
   const stressData = useRef(seeded(12350, 24, 10, 80));
 
-  // Restore session
   useEffect(() => {
     const savedToken = localStorage.getItem("acoach_token");
     const savedUser  = localStorage.getItem("acoach_user");
@@ -400,20 +472,28 @@ export default function App() {
       const parsedUser = JSON.parse(savedUser);
       setToken(savedToken);
       setAuthUser(parsedUser);
-      fetch(`${API_URL}/fitbit/status/${parsedUser.id}`)
-        .then(r => r.json())
-        .then(d => { setFitbitConnected(d.connected); if (d.connected) syncFitbit(parsedUser.id); })
-        .catch(() => {});
+      checkIntegrations(parsedUser.id);
     }
   }, []);
 
-  // Check Fitbit + load dataset on auth
+  const checkIntegrations = async (uid) => {
+    try {
+      const [fitRes, strRes] = await Promise.all([
+        fetch(`${API_URL}/fitbit/status/${uid}`),
+        fetch(`${API_URL}/strava/status/${uid}`)
+      ]);
+      const fitData = await fitRes.json();
+      const strData = await strRes.json();
+      setFitbitConnected(fitData.connected);
+      setStravaConnected(strData.connected);
+      if (fitData.connected) syncFitbit(uid);
+      if (strData.connected) syncStrava(uid);
+    } catch {}
+  };
+
   useEffect(() => {
     if (authUser) {
-      fetch(`${API_URL}/fitbit/status/${authUser.id}`)
-        .then(r => r.json())
-        .then(d => { setFitbitConnected(d.connected); if (d.connected) syncFitbit(authUser.id); })
-        .catch(() => {});
+      checkIntegrations(authUser.id);
       fetch(`${API_URL}/users`).then(r => r.json()).then(d => {
         setDatasetUsers(d.users || []);
         if (d.users?.length) { setSelectedDatasetUser(d.users[0]); fetchReport(d.users[0]); }
@@ -421,15 +501,17 @@ export default function App() {
     }
   }, [authUser]);
 
-  // Check fitbit callback URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const dashUser = params.get("dashboard_user");
-    if (dashUser) {
-      setFitbitConnected(true);
+    const stravaOk = params.get("strava_connected");
+    if (dashUser || stravaOk) {
       window.history.replaceState({}, "", window.location.pathname);
       const u = JSON.parse(localStorage.getItem("acoach_user") || "{}");
-      if (u.id) syncFitbit(u.id);
+      if (u.id) {
+        if (dashUser) { setFitbitConnected(true); syncFitbit(u.id); }
+        if (stravaOk) { setStravaConnected(true); syncStrava(u.id); }
+      }
     }
   }, []);
 
@@ -479,14 +561,17 @@ export default function App() {
   };
 
   const syncFitbit = async (uid) => {
-    const id = uid || authUser?.id;
-    if (!id) return;
+    const id = uid || authUser?.id; if (!id) return;
     setFitbitSyncing(true);
-    try {
-      const r = await fetch(`${API_URL}/fitbit/sync/${id}`);
-      if (r.ok) { const d = await r.json(); setFitbitData(d.data); }
-    } catch {}
+    try { const r = await fetch(`${API_URL}/fitbit/sync/${id}`); if (r.ok) { const d = await r.json(); setFitbitData(d.data); } } catch {}
     finally { setFitbitSyncing(false); }
+  };
+
+  const syncStrava = async (uid) => {
+    const id = uid || authUser?.id; if (!id) return;
+    setStravaSyncing(true);
+    try { const r = await fetch(`${API_URL}/strava/sync/${id}`); if (r.ok) { const d = await r.json(); setStravaData(d.data); } } catch {}
+    finally { setStravaSyncing(false); }
   };
 
   const handleLogin = (user, tok) => { setAuthUser(user); setToken(tok); };
@@ -494,6 +579,7 @@ export default function App() {
     localStorage.removeItem("acoach_token"); localStorage.removeItem("acoach_user");
     setAuthUser(null); setToken(null); setData(null); setTs(null);
     setRecovery(null); setGoal(null); setFitbitConnected(false); setFitbitData(null);
+    setStravaConnected(false); setStravaData(null);
   };
 
   if (!authUser) return <AuthPage onLogin={handleLogin} />;
@@ -548,8 +634,6 @@ export default function App() {
       `}</style>
 
       <div style={{ display: "flex", minHeight: "100vh" }}>
-
-        {/* ── Desktop Sidebar ── */}
         {!isMobile && (
           <div style={{ width: sidebarOpen ? 220 : 64, background: T.sidebar, flexShrink: 0, display: "flex", flexDirection: "column", transition: "width 0.2s ease", position: "sticky", top: 0, height: "100vh", overflow: "hidden" }}>
             <div style={{ padding: "20px 16px 16px", borderBottom: "1px solid #ffffff12" }}>
@@ -570,7 +654,10 @@ export default function App() {
                   <div>
                     <div style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0" }}>{authUser.username}</div>
                     <div style={{ fontSize: 10, color: T.muted }}>{authUser.email}</div>
-                    {fitbitConnected && <div style={{ fontSize: 10, color: T.cyan }}>⌚ Fitbit connected</div>}
+                    <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
+                      {fitbitConnected && <span style={{ fontSize: 9, color: T.cyan }}>⌚ Fitbit</span>}
+                      {stravaConnected && <span style={{ fontSize: 9, color: T.strava }}>🏃 Strava</span>}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -591,42 +678,37 @@ export default function App() {
           </div>
         )}
 
-        {/* ── Main ── */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-
-          {/* Header */}
           <div style={{ background: T.card, borderBottom: `1px solid ${T.border}`, padding: isMobile ? "10px 16px" : "12px 24px", display: "flex", alignItems: "center", gap: isMobile ? 8 : 12, position: "sticky", top: 0, zIndex: 100 }}>
-            {!isMobile && (
+            {!isMobile ? (
               <button onClick={() => setSidebarOpen(v => !v)} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${T.border}`, background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: T.muted }}>☰</button>
-            )}
-            {isMobile && (
+            ) : (
               <div style={{ width: 32, height: 32, borderRadius: 10, background: T.blue, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "#fff", flexShrink: 0 }}>A</div>
             )}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: isMobile ? 15 : 18, fontWeight: 700, color: T.text, fontFamily: "'Nunito Sans', system-ui", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{tabTitle}</div>
+              <div style={{ fontSize: isMobile ? 15 : 18, fontWeight: 700, color: T.text, fontFamily: "'Nunito Sans', system-ui" }}>{tabTitle}</div>
               <div style={{ fontSize: 11, color: T.muted }}>{authUser.username} • {new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}</div>
             </div>
-            {/* Dataset selector — hidden on small mobile */}
             {!isMobile && datasetUsers.length > 0 && (
               <select value={selectedDatasetUser || ""} onChange={e => { setSelectedDatasetUser(e.target.value); fetchReport(e.target.value); }}
                 style={{ background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, padding: "6px 12px", fontSize: 12, color: T.text, cursor: "pointer", outline: "none" }}>
                 {datasetUsers.map(u => <option key={u} value={u}>Dataset: {u}</option>)}
               </select>
             )}
-            {/* Fitbit button */}
             <button onClick={() => window.location.href = `${API_URL}/fitbit/login/${authUser.id}`}
-              style={{ background: fitbitConnected ? T.greenLight : T.blueLight, border: `1px solid ${fitbitConnected ? T.green : T.blue}`, borderRadius: 8, padding: isMobile ? "6px 10px" : "6px 14px", color: fitbitConnected ? T.green : T.blue, fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
+              style={{ background: fitbitConnected ? T.greenLight : T.blueLight, border: `1px solid ${fitbitConnected ? T.green : T.blue}`, borderRadius: 8, padding: isMobile ? "6px 8px" : "6px 14px", color: fitbitConnected ? T.green : T.blue, fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
               <span>⌚</span>
-              <span>{fitbitConnected ? (isMobile ? "✓" : "Fitbit ✓") : (isMobile ? "Fitbit" : "Connect Fitbit")}</span>
+              <span>{fitbitConnected ? (isMobile ? "✓" : "Fitbit ✓") : "Fitbit"}</span>
             </button>
-            {/* Mobile sign out */}
-            {isMobile && (
-              <button onClick={handleLogout} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${T.border}`, background: "transparent", cursor: "pointer", fontSize: 14, color: T.muted }}>↩</button>
-            )}
+            <button onClick={() => window.location.href = `${API_URL}/strava/login/${authUser.id}`}
+              style={{ background: stravaConnected ? T.stravaLight : T.strava, border: `1px solid ${T.strava}`, borderRadius: 8, padding: isMobile ? "6px 8px" : "6px 14px", color: stravaConnected ? T.strava : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
+              <StravaIcon size={14} />
+              <span>{stravaConnected ? (isMobile ? "✓" : "Strava ✓") : "Strava"}</span>
+            </button>
+            {isMobile && <button onClick={handleLogout} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${T.border}`, background: "transparent", cursor: "pointer", fontSize: 14, color: T.muted }}>↩</button>}
             {err && <div style={{ background: T.redLight, color: T.red, borderRadius: 8, padding: "6px 12px", fontSize: 12 }}>⚠ {err}</div>}
           </div>
 
-          {/* Mobile dataset selector */}
           {isMobile && datasetUsers.length > 0 && (
             <div style={{ background: T.card, borderBottom: `1px solid ${T.border}`, padding: "8px 16px" }}>
               <select value={selectedDatasetUser || ""} onChange={e => { setSelectedDatasetUser(e.target.value); fetchReport(e.target.value); }}
@@ -636,8 +718,7 @@ export default function App() {
             </div>
           )}
 
-          {/* Page content */}
-          <div style={{ flex: 1, padding: isMobile ? "16px" : "24px", overflowY: "auto", paddingBottom: isMobile ? 80 : (isMobile ? 16 : 24) }}>
+          <div style={{ flex: 1, padding: isMobile ? "16px" : "24px", overflowY: "auto", paddingBottom: isMobile ? 80 : 24 }}>
             {loading && (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "50vh", gap: 12 }}>
                 <div style={{ width: 40, height: 40, borderRadius: "50%", border: `3px solid ${T.border}`, borderTopColor: T.blue, animation: "spin 0.8s linear infinite" }} />
@@ -647,10 +728,8 @@ export default function App() {
 
             {data && !loading && (
               <>
-                {/* ══ HOME ══ */}
                 {tab === "home" && (
                   <div className="fade">
-                    {/* Summary cards — 2 cols on mobile, 4 on desktop */}
                     <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fit, minmax(200px, 1fr))", gap: isMobile ? 12 : 16, marginBottom: isMobile ? 16 : 24 }}>
                       <Card accent={hc}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -691,15 +770,21 @@ export default function App() {
                       </Card>
                     </div>
 
-                    {/* Fitbit Live Card */}
-                    <SectionLabel>Fitbit Live</SectionLabel>
-                    <Card accent={fitbitConnected ? T.green : T.blue} style={{ marginBottom: isMobile ? 16 : 24 }}>
+                    {/* ── Integrations Section ── */}
+                    <SectionLabel>Your Devices & Apps</SectionLabel>
+
+                    {/* Fitbit Card */}
+                    <Card accent={fitbitConnected ? T.green : T.border} style={{ marginBottom: isMobile ? 12 : 16 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
                         <div style={{ flex: 1 }}>
-                          <MetricLabel>TODAY'S DATA FROM YOUR FITBIT</MetricLabel>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                            <span style={{ fontSize: 18 }}>⌚</span>
+                            <MetricLabel>FITBIT</MetricLabel>
+                            {fitbitConnected && <span style={{ fontSize: 10, background: T.greenLight, color: T.green, borderRadius: 20, padding: "2px 8px", fontWeight: 600 }}>Connected</span>}
+                          </div>
                           {fitbitConnected ? (
                             fitbitData ? (
-                              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginTop: 10 }}>
+                              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
                                 {[
                                   { label: "Steps",    val: fitbitData.TotalSteps?.toLocaleString() ?? "—",   icon: "👟" },
                                   { label: "Calories", val: fitbitData.Calories?.toLocaleString() ?? "—",     icon: "🔥" },
@@ -707,29 +792,34 @@ export default function App() {
                                   { label: "Avg HR",   val: fitbitData.AvgHeartRate ? `${Math.round(fitbitData.AvgHeartRate)} bpm` : "—", icon: "❤️" },
                                 ].map(m => (
                                   <div key={m.label} style={{ background: T.bg, borderRadius: 8, padding: "8px 10px" }}>
-                                    <div style={{ fontSize: 14, marginBottom: 2 }}>{m.icon}</div>
+                                    <div style={{ fontSize: 13, marginBottom: 2 }}>{m.icon}</div>
                                     <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>{m.val}</div>
                                     <div style={{ fontSize: 10, color: T.muted }}>{m.label}</div>
                                   </div>
                                 ))}
                               </div>
                             ) : <SubText>{fitbitSyncing ? "Syncing…" : "Click Sync to load today's data"}</SubText>
-                          ) : <SubText>Connect your Fitbit for real-time data</SubText>}
+                          ) : <SubText>Connect your Fitbit for real-time health data</SubText>}
                         </div>
                         <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-                          {fitbitConnected && (
-                            <button onClick={() => syncFitbit(authUser.id)}
-                              style={{ background: T.greenLight, border: `1px solid ${T.green}`, borderRadius: 8, padding: "8px 12px", color: T.green, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-                              {fitbitSyncing ? "…" : "🔄"}
-                            </button>
-                          )}
+                          {fitbitConnected && <button onClick={() => syncFitbit(authUser.id)} style={{ background: T.greenLight, border: `1px solid ${T.green}`, borderRadius: 8, padding: "8px 12px", color: T.green, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{fitbitSyncing ? "…" : "🔄"}</button>}
                           <button onClick={() => window.location.href = `${API_URL}/fitbit/login/${authUser.id}`}
-                            style={{ background: fitbitConnected ? T.bg : T.blue, border: `1px solid ${fitbitConnected ? T.border : T.blue}`, borderRadius: 8, padding: "8px 12px", color: fitbitConnected ? T.muted : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                            style={{ background: fitbitConnected ? T.bg : T.green, border: `1px solid ${fitbitConnected ? T.border : T.green}`, borderRadius: 8, padding: "8px 12px", color: fitbitConnected ? T.muted : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
                             {fitbitConnected ? "Reconnect" : "🔗 Connect"}
                           </button>
                         </div>
                       </div>
                     </Card>
+
+                    {/* Strava Card */}
+                    <StravaCard
+                      authUser={authUser}
+                      stravaConnected={stravaConnected}
+                      stravaData={stravaData}
+                      stravaSyncing={stravaSyncing}
+                      onSync={() => syncStrava(authUser.id)}
+                      isMobile={isMobile}
+                    />
 
                     {/* In Focus */}
                     <SectionLabel>In Focus</SectionLabel>
@@ -774,7 +864,7 @@ export default function App() {
                       </Card>
                     </div>
 
-                    {/* Temporary Items */}
+                    {/* Insights */}
                     <SectionLabel>Insights</SectionLabel>
                     <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(200px, 1fr))", gap: isMobile ? 10 : 16, marginBottom: isMobile ? 16 : 24 }}>
                       {[
@@ -802,9 +892,9 @@ export default function App() {
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: isMobile ? 10 : 16, marginBottom: isMobile ? 16 : 24 }}>
                       {[
-                        { label: "Heart Rate",  val: `${data.profile?.avg_hr ?? 72}`,  unit: "bpm",      chart: <SparkLine data={hrChart} color={T.red} h={32} /> },
+                        { label: "Heart Rate",  val: `${data.profile?.avg_hr ?? 72}`,  unit: "bpm",       chart: <SparkLine data={hrChart} color={T.red} h={32} /> },
                         { label: "Sleep",       val: `${data.profile?.avg_sleep ? Math.floor(data.profile.avg_sleep / 60) : 6}h ${data.profile?.avg_sleep ? Math.round(data.profile.avg_sleep % 60) : 24}m`, unit: "Duration", chart: <SparkBar data={sleepChart.slice(0, 7)} color={T.purple} h={32} /> },
-                        { label: "HRV",         val: latestHrv7d ? latestHrv7d.toFixed(0) + " ms" : "—", unit: "7d Avg",   chart: <SparkLine data={hrvChart} color={hrvColor} h={32} /> },
+                        { label: "HRV",         val: latestHrv7d ? latestHrv7d.toFixed(0) + " ms" : "—", unit: "7d Avg",    chart: <SparkLine data={hrvChart} color={hrvColor} h={32} /> },
                         { label: "Steps",       val: (data.profile?.avg_steps ?? 7500).toLocaleString(),  unit: "daily avg", chart: <SparkBar data={stepsChart.slice(0, 7)} color={T.blue} h={32} /> },
                       ].map(m => (
                         <Card key={m.label}>
@@ -833,7 +923,6 @@ export default function App() {
                   </div>
                 )}
 
-                {/* ══ AT A GLANCE ══ */}
                 {tab === "glance" && (
                   <div className="fade">
                     {ts && <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: T.greenLight, color: T.green, borderRadius: 20, padding: "4px 12px", fontSize: 12, fontWeight: 600, marginBottom: 16 }}>● Live data — {ts.dates?.length} days</div>}
@@ -890,9 +979,7 @@ export default function App() {
                           <Ring pct={fat.pct} color={fat.color} size={60} stroke={7}>
                             <span style={{ fontSize: 14, fontWeight: 700, color: fat.color }}>{fat.pct}</span>
                           </Ring>
-                          <div style={{ flex: 1, minHeight: 48 }}>
-                            <SparkBar data={stressChart.slice(0, 12)} color={fat.color} h={48} />
-                          </div>
+                          <div style={{ flex: 1, minHeight: 48 }}><SparkBar data={stressChart.slice(0, 12)} color={fat.color} h={48} /></div>
                         </div>
                       </Card>
                       <Card>
@@ -942,7 +1029,6 @@ export default function App() {
                   </div>
                 )}
 
-                {/* ══ RECOVERY ══ */}
                 {tab === "recovery" && (
                   <div className="fade">
                     {!recovery ? (
@@ -987,7 +1073,6 @@ export default function App() {
                   </div>
                 )}
 
-                {/* ══ GOAL ══ */}
                 {tab === "goal" && (
                   <div className="fade">
                     {!goal ? (
@@ -1041,7 +1126,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* ── Mobile Bottom Navigation ── */}
       {isMobile && (
         <MobileBottomNav
           tab={tab} setTab={setTab}
