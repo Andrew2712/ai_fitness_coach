@@ -460,7 +460,7 @@ def fitbit_status_user(dashboard_user_id: str):
     return {"connected": bool(tokens)}
 
 # ── Strava OAuth Routes ────────────────────────────────────────────────────────
-from agents.strava_agent import get_auth_url as strava_auth_url, exchange_code as strava_exchange, fetch_today as strava_fetch, save_tokens as strava_save, load_tokens as strava_load
+from agents.strava_agent import get_auth_url as strava_auth_url, exchange_code as strava_exchange, fetch_stats as strava_fetch, save_tokens as strava_save, load_tokens as strava_load
 
 @app.get("/strava/login/{user_id}")
 def strava_login(user_id: str):
