@@ -33,3 +33,19 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def migrate_db():
+    """Add missing columns to existing tables."""
+    try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            for col in [
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS strava_access_token VARCHAR",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS strava_refresh_token VARCHAR",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS strava_athlete_id VARCHAR",
+            ]:
+                conn.execute(text(col))
+            conn.commit()
+        print("Migration done")
+    except Exception as e:
+        print(f"Migration error: {e}")

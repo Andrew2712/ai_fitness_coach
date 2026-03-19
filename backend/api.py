@@ -348,6 +348,8 @@ from pydantic import BaseModel as BM
 # Init DB tables on startup
 try:
     init_db()
+    from database import migrate_db
+    migrate_db()
 except Exception as e:
     print(f"DB init error: {e}")
 
