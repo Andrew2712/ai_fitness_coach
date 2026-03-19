@@ -18,6 +18,9 @@ class User(Base):
     fitbit_user_id  = Column(String, nullable=True)
     fitbit_access_token  = Column(String, nullable=True)
     fitbit_refresh_token = Column(String, nullable=True)
+    strava_access_token  = Column(String, nullable=True)
+    strava_refresh_token = Column(String, nullable=True)
+    strava_athlete_id    = Column(String, nullable=True)
     created_at    = Column(DateTime, default=datetime.datetime.utcnow)
     is_active     = Column(Boolean, default=True)
 

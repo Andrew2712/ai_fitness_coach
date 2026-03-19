@@ -456,3 +456,34 @@ def fitbit_status_user(dashboard_user_id: str):
     from agents.fitbit_agent import load_tokens
     tokens = load_tokens(dashboard_user_id)
     return {"connected": bool(tokens)}
+
+# ── Strava OAuth Routes ────────────────────────────────────────────────────────
+from agents.strava_agent import get_auth_url as strava_auth_url, exchange_code as strava_exchange, fetch_today as strava_fetch, save_tokens as strava_save, load_tokens as strava_load
+
+@app.get("/strava/login/{user_id}")
+def strava_login(user_id: str):
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(strava_auth_url(state=user_id))
+
+@app.get("/strava/callback")
+def strava_callback(code: str, state: str = None):
+    from fastapi.responses import RedirectResponse
+    tokens = strava_exchange(code)
+    dashboard_user_id = state or "unknown"
+    strava_save(tokens, dashboard_user_id)
+    return RedirectResponse(
+        f"https://ai-fitness-coach-henna-tau.vercel.app?strava_connected=true&dashboard_user={dashboard_user_id}"
+    )
+
+@app.get("/strava/status/{user_id}")
+def strava_status(user_id: str):
+    tokens = strava_load(user_id)
+    return {"connected": bool(tokens)}
+
+@app.get("/strava/sync/{user_id}")
+def strava_sync(user_id: str):
+    try:
+        data = strava_fetch(user_id)
+        return {"status": "ok", "data": data}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
