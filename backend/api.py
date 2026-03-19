@@ -489,3 +489,28 @@ def strava_sync(user_id: str):
         return {"status": "ok", "data": data}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete("/fitbit/disconnect/{user_id}")
+def fitbit_disconnect(user_id: str):
+    try:
+        from database import SessionLocal, User as DBUser
+        db = SessionLocal()
+        user = db.query(DBUser).filter(DBUser.id == int(user_id)).first()
+        if user:
+            user.fitbit_user_id = None
+            user.fitbit_access_token = None
+            user.fitbit_refresh_token = None
+            db.commit()
+        db.close()
+        return {"status": "disconnected"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete("/strava/disconnect/{user_id}")
+def strava_disconnect(user_id: str):
+    try:
+        from agents.strava_agent import disconnect as strava_disc
+        strava_disc(user_id)
+        return {"status": "disconnected"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
