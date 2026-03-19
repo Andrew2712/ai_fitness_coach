@@ -62,7 +62,6 @@ function seeded(seed, n, lo, hi) {
     return lo + ((s >>> 0) / 0xffffffff) * (hi - lo);
   });
 }
-
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   useEffect(() => {
@@ -181,66 +180,198 @@ function Pill({ children, color, bg }) {
   return <span style={{ display: "inline-block", background: bg || color + "18", color, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 600, fontFamily: "system-ui" }}>{children}</span>;
 }
 
-// ── Strava Logo SVG ────────────────────────────────────────────────────────────
-function StravaIcon({ size = 16 }) {
+function StravaIcon({ size = 16, color = "#fc4c02" }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill={T.strava}>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
       <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169" />
     </svg>
   );
 }
 
-// ── Strava Card Component ──────────────────────────────────────────────────────
-function StravaCard({ authUser, stravaConnected, stravaData, stravaSyncing, onSync, isMobile }) {
-  return (
-    <Card accent={stravaConnected ? T.strava : T.border} style={{ marginBottom: isMobile ? 16 : 24 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-            <StravaIcon size={20} />
-            <MetricLabel>STRAVA</MetricLabel>
-            {stravaConnected && <span style={{ fontSize: 10, background: T.stravaLight, color: T.strava, borderRadius: 20, padding: "2px 8px", fontWeight: 600 }}>Connected</span>}
+function ActivityTypeIcon({ type }) {
+  const icons = { Run: "🏃", Ride: "🚴", Walk: "🚶", Hike: "🥾", Swim: "🏊", Workout: "🏋️" };
+  return <span>{icons[type] || "⚡"}</span>;
+}
+
+// ── Full Strava Dashboard Card ─────────────────────────────────────────────────
+function StravaDashboard({ authUser, stravaConnected, stravaData, stravaSyncing, onSync, onDisconnect, isMobile }) {
+  const [view, setView] = useState("week"); // week | month | ytd | recent
+
+  if (!stravaConnected) {
+    return (
+      <Card accent={T.border} style={{ marginBottom: isMobile ? 16 : 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <StravaIcon size={20} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Strava</span>
+            </div>
+            <SubText>Connect your Strava to see running & cycling data</SubText>
           </div>
-          {stravaConnected ? (
-            stravaData ? (
-              <>
-                <div style={{ fontSize: 12, color: T.muted, marginBottom: 10 }}>
-                  {stravaData.athlete} • {stravaData.ytd_runs} runs this year • {stravaData.ytd_km} km YTD
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: 8 }}>
-                  {[
-                    { label: "Activities",  val: `${stravaData.activities_7d}`,        sub: "last 7 days", icon: "🏃" },
-                    { label: "Distance",    val: `${stravaData.distance_7d_km} km`,    sub: "last 7 days", icon: "📍" },
-                    { label: "Time",        val: `${stravaData.time_7d_min} min`,       sub: "moving time",  icon: "⏱️" },
-                    { label: "Avg HR",      val: stravaData.avg_hr ? `${stravaData.avg_hr} bpm` : "—", sub: "heart rate", icon: "❤️" },
-                  ].map(m => (
-                    <div key={m.label} style={{ background: T.stravaLight, borderRadius: 8, padding: "10px 12px" }}>
-                      <div style={{ fontSize: 14, marginBottom: 2 }}>{m.icon}</div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: T.strava }}>{m.val}</div>
-                      <div style={{ fontSize: 10, color: T.muted }}>{m.label}</div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : <SubText>{stravaSyncing ? "Syncing Strava data…" : "Click Sync to load your activities"}</SubText>
-          ) : (
-            <SubText>Connect your Strava account to see your running and cycling data here</SubText>
-          )}
-        </div>
-        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-          {stravaConnected && (
-            <button onClick={onSync}
-              style={{ background: T.stravaLight, border: `1px solid ${T.strava}`, borderRadius: 8, padding: "8px 12px", color: T.strava, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-              {stravaSyncing ? "…" : "🔄"}
-            </button>
-          )}
           <button onClick={() => window.location.href = `${API_URL}/strava/login/${authUser.id}`}
-            style={{ background: stravaConnected ? T.bg : T.strava, border: `1px solid ${stravaConnected ? T.border : T.strava}`, borderRadius: 8, padding: "8px 14px", color: stravaConnected ? T.muted : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-            <StravaIcon size={14} />
-            <span>{stravaConnected ? "Reconnect" : "Connect Strava"}</span>
+            style={{ background: T.strava, border: "none", borderRadius: 8, padding: "10px 16px", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+            <StravaIcon size={14} color="#fff" />
+            Connect Strava
+          </button>
+        </div>
+      </Card>
+    );
+  }
+
+  const d = stravaData;
+  if (!d) return (
+    <Card accent={T.strava} style={{ marginBottom: isMobile ? 16 : 24 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <StravaIcon size={18} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: T.strava }}>Strava Connected</span>
+        </div>
+        <button onClick={onSync} style={{ background: T.stravaLight, border: `1px solid ${T.strava}`, borderRadius: 8, padding: "8px 14px", color: T.strava, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+          {stravaSyncing ? "Syncing…" : "🔄 Load Data"}
+        </button>
+      </div>
+    </Card>
+  );
+
+  const stats = view === "week" ? d.week : view === "month" ? d.month : null;
+
+  return (
+    <Card accent={T.strava} style={{ marginBottom: isMobile ? 16 : 24 }}>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+            <StravaIcon size={20} />
+            <span style={{ fontSize: 15, fontWeight: 700, color: T.text }}>{d.athlete}</span>
+            <span style={{ fontSize: 10, background: T.stravaLight, color: T.strava, borderRadius: 20, padding: "2px 8px", fontWeight: 600 }}>Connected</span>
+          </div>
+          <div style={{ fontSize: 11, color: T.muted }}>
+            {d.city}{d.city && d.country ? ", " : ""}{d.country} • {d.followers} followers • {d.following} following
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button onClick={onSync} style={{ background: T.stravaLight, border: `1px solid ${T.strava}`, borderRadius: 8, padding: "6px 10px", color: T.strava, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+            {stravaSyncing ? "…" : "🔄"}
+          </button>
+          <button onClick={() => window.location.href = `${API_URL}/strava/login/${authUser.id}`}
+            style={{ background: T.stravaLight, border: `1px solid ${T.strava}`, borderRadius: 8, padding: "6px 10px", color: T.strava, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+            Reconnect
+          </button>
+          <button onClick={onDisconnect}
+            style={{ background: T.redLight, border: `1px solid ${T.red}`, borderRadius: 8, padding: "6px 10px", color: T.red, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+            Disconnect
           </button>
         </div>
       </div>
+
+      {/* Tab selector */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 16, background: T.bg, borderRadius: 8, padding: 4 }}>
+        {[
+          { id: "week",   label: "This Week" },
+          { id: "month",  label: "This Month" },
+          { id: "ytd",    label: "Year to Date" },
+          { id: "recent", label: "Recent" },
+        ].map(t => (
+          <button key={t.id} onClick={() => setView(t.id)}
+            style={{ flex: 1, padding: "6px 4px", borderRadius: 6, border: "none", background: view === t.id ? T.card : "transparent", color: view === t.id ? T.strava : T.muted, fontSize: isMobile ? 10 : 12, fontWeight: view === t.id ? 700 : 400, cursor: "pointer", boxShadow: view === t.id ? "0 1px 4px rgba(0,0,0,0.08)" : "none" }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Week / Month stats */}
+      {(view === "week" || view === "month") && stats && (
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: 10, marginBottom: 14 }}>
+            {[
+              { icon: "🏃", label: "Activities", val: `${stats.count}`, sub: `${stats.runs} runs${stats.rides ? ` • ${stats.rides} rides` : ""}` },
+              { icon: "📍", label: "Distance",   val: `${stats.distance_km} km`, sub: `${stats.elevation_m}m elevation` },
+              { icon: "⏱️", label: "Time",        val: `${stats.time_min} min`, sub: `${Math.floor(stats.time_min/60)}h ${Math.round(stats.time_min%60)}m` },
+              { icon: "⚡", label: "Avg Pace",   val: stats.avg_pace_min_km ? `${stats.avg_pace_min_km} /km` : "—", sub: stats.avg_speed_kmh ? `${stats.avg_speed_kmh} km/h` : "" },
+            ].map(m => (
+              <div key={m.label} style={{ background: T.stravaLight, borderRadius: 10, padding: "12px" }}>
+                <div style={{ fontSize: 16, marginBottom: 4 }}>{m.icon}</div>
+                <div style={{ fontSize: isMobile ? 14 : 16, fontWeight: 700, color: T.strava }}>{m.val}</div>
+                <div style={{ fontSize: 10, color: T.muted, marginTop: 2 }}>{m.label}</div>
+                <div style={{ fontSize: 10, color: T.subtle }}>{m.sub}</div>
+              </div>
+            ))}
+          </div>
+          {/* HR info if available */}
+          {stats.avg_hr && (
+            <div style={{ display: "flex", gap: 10 }}>
+              <div style={{ background: T.redLight, borderRadius: 8, padding: "8px 12px", flex: 1 }}>
+                <div style={{ fontSize: 11, color: T.muted }}>Avg Heart Rate</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: T.red }}>{stats.avg_hr} bpm</div>
+              </div>
+              {stats.max_hr && (
+                <div style={{ background: T.redLight, borderRadius: 8, padding: "8px 12px", flex: 1 }}>
+                  <div style={{ fontSize: 11, color: T.muted }}>Max Heart Rate</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: T.red }}>{stats.max_hr} bpm</div>
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* YTD stats */}
+      {view === "ytd" && (
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: 10, marginBottom: 14 }}>
+            {[
+              { icon: "🏃", label: "Total Runs",    val: `${d.ytd_runs}` },
+              { icon: "📍", label: "Total Distance", val: `${d.ytd_km} km` },
+              { icon: "⏱️", label: "Total Time",     val: `${d.ytd_time_h}h` },
+              { icon: "⛰️", label: "Elevation",      val: `${d.ytd_elevation}m` },
+            ].map(m => (
+              <div key={m.label} style={{ background: T.stravaLight, borderRadius: 10, padding: "12px" }}>
+                <div style={{ fontSize: 16, marginBottom: 4 }}>{m.icon}</div>
+                <div style={{ fontSize: isMobile ? 14 : 18, fontWeight: 700, color: T.strava }}>{m.val}</div>
+                <div style={{ fontSize: 10, color: T.muted, marginTop: 2 }}>{m.label}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ background: T.stravaLight, borderRadius: 10, padding: 14 }}>
+            <div style={{ fontSize: 12, color: T.muted, marginBottom: 8 }}>All-Time Stats</div>
+            <div style={{ display: "flex", gap: 24 }}>
+              <div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: T.strava }}>{d.all_runs}</div>
+                <div style={{ fontSize: 11, color: T.muted }}>Total Runs</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: T.strava }}>{d.all_km} km</div>
+                <div style={{ fontSize: 11, color: T.muted }}>Total Distance</div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Recent activities */}
+      {view === "recent" && d.recent && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {d.recent.map((act, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", background: T.stravaLight, borderRadius: 10 }}>
+              <div style={{ width: 36, height: 36, borderRadius: "50%", background: T.strava + "20", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>
+                <ActivityTypeIcon type={act.type} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: T.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{act.name}</div>
+                <div style={{ fontSize: 11, color: T.muted }}>{act.date} • {act.type}</div>
+              </div>
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: T.strava }}>{act.distance_km} km</div>
+                <div style={{ fontSize: 11, color: T.muted }}>{act.time_min} min</div>
+              </div>
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                <div style={{ fontSize: 11, color: T.amber }}>⛰️ {act.elevation_m}m</div>
+                <div style={{ fontSize: 11, color: T.muted }}>👏 {act.kudos}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </Card>
   );
 }
@@ -371,22 +502,18 @@ function AuthPage({ onLogin }) {
               </div>
               {err && <div style={{ background: T.redLight, border: `1px solid ${T.red}40`, borderRadius: 8, padding: "9px 12px", color: T.red, fontSize: 12 }}>⚠ {err}</div>}
               <button onClick={submit} disabled={busy}
-                style={{ width: "100%", background: busy ? T.border : T.blue, border: "none", borderRadius: 8, padding: 13, color: "#fff", fontFamily: "system-ui", fontSize: 14, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer", marginTop: 4 }}>
+                style={{ width: "100%", background: busy ? T.border : T.blue, border: "none", borderRadius: 8, padding: 13, color: "#fff", fontFamily: "system-ui", fontSize: 14, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer" }}>
                 {busy ? "Please wait…" : mode === "login" ? "Sign In →" : "Create Account →"}
               </button>
-
-              {/* Divider */}
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{ flex: 1, height: 1, background: T.border }} />
-                <span style={{ fontSize: 12, color: T.muted }}>or continue with</span>
+                <span style={{ fontSize: 12, color: T.muted }}>or</span>
                 <div style={{ flex: 1, height: 1, background: T.border }} />
               </div>
-
-              {/* Strava OAuth login */}
               <button onClick={() => window.location.href = `${API_URL}/strava/login/new`}
                 style={{ width: "100%", background: T.strava, border: "none", borderRadius: 8, padding: 13, color: "#fff", fontFamily: "system-ui", fontSize: 14, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                <StravaIcon size={18} />
-                <span>Continue with Strava</span>
+                <StravaIcon size={18} color="#fff" />
+                Continue with Strava
               </button>
             </div>
           </Card>
@@ -397,7 +524,7 @@ function AuthPage({ onLogin }) {
   );
 }
 
-function MobileBottomNav({ tab, setTab, fetchRecovery, fetchGoal, recovery, goal, loadingRec, loadingGoal }) {
+function MobileBottomNav({ tab, setTab, fetchRecovery, fetchGoal, recovery, goal }) {
   const items = [
     { id: "home",     icon: "⊞", label: "Home"     },
     { id: "glance",   icon: "◎", label: "Glance"   },
@@ -411,8 +538,7 @@ function MobileBottomNav({ tab, setTab, fetchRecovery, fetchGoal, recovery, goal
           if (n.id === "recovery" && !recovery) fetchRecovery();
           else if (n.id === "goal" && !goal) fetchGoal();
           else setTab(n.id);
-        }}
-          style={{ flex: 1, padding: "10px 4px 8px", border: "none", background: "transparent", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+        }} style={{ flex: 1, padding: "10px 4px 8px", border: "none", background: "transparent", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
           <span style={{ fontSize: 20 }}>{n.icon}</span>
           <span style={{ fontSize: 10, color: tab === n.id ? T.blue : T.muted, fontWeight: tab === n.id ? 700 : 400, fontFamily: "system-ui" }}>{n.label}</span>
           {tab === n.id && <div style={{ width: 4, height: 4, borderRadius: "50%", background: T.blue }} />}
@@ -574,7 +700,19 @@ export default function App() {
     finally { setStravaSyncing(false); }
   };
 
-  const handleLogin = (user, tok) => { setAuthUser(user); setToken(tok); };
+  const disconnectFitbit = async () => {
+    if (!confirm("Disconnect Fitbit? You can reconnect anytime.")) return;
+    await fetch(`${API_URL}/fitbit/disconnect/${authUser.id}`, { method: "DELETE" });
+    setFitbitConnected(false); setFitbitData(null);
+  };
+
+  const disconnectStrava = async () => {
+    if (!confirm("Disconnect Strava? You can reconnect anytime.")) return;
+    await fetch(`${API_URL}/strava/disconnect/${authUser.id}`, { method: "DELETE" });
+    setStravaConnected(false); setStravaData(null);
+  };
+
+  const handleLogin  = (user, tok) => { setAuthUser(user); setToken(tok); };
   const handleLogout = () => {
     localStorage.removeItem("acoach_token"); localStorage.removeItem("acoach_user");
     setAuthUser(null); setToken(null); setData(null); setTs(null);
@@ -702,7 +840,7 @@ export default function App() {
             </button>
             <button onClick={() => window.location.href = `${API_URL}/strava/login/${authUser.id}`}
               style={{ background: stravaConnected ? T.stravaLight : T.strava, border: `1px solid ${T.strava}`, borderRadius: 8, padding: isMobile ? "6px 8px" : "6px 14px", color: stravaConnected ? T.strava : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
-              <StravaIcon size={14} />
+              <StravaIcon size={13} color={stravaConnected ? T.strava : "#fff"} />
               <span>{stravaConnected ? (isMobile ? "✓" : "Strava ✓") : "Strava"}</span>
             </button>
             {isMobile && <button onClick={handleLogout} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${T.border}`, background: "transparent", cursor: "pointer", fontSize: 14, color: T.muted }}>↩</button>}
@@ -730,6 +868,7 @@ export default function App() {
               <>
                 {tab === "home" && (
                   <div className="fade">
+                    {/* Summary cards */}
                     <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fit, minmax(200px, 1fr))", gap: isMobile ? 12 : 16, marginBottom: isMobile ? 16 : 24 }}>
                       <Card accent={hc}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -770,7 +909,7 @@ export default function App() {
                       </Card>
                     </div>
 
-                    {/* ── Integrations Section ── */}
+                    {/* Devices & Apps */}
                     <SectionLabel>Your Devices & Apps</SectionLabel>
 
                     {/* Fitbit Card */}
@@ -779,7 +918,7 @@ export default function App() {
                         <div style={{ flex: 1 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                             <span style={{ fontSize: 18 }}>⌚</span>
-                            <MetricLabel>FITBIT</MetricLabel>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Fitbit</span>
                             {fitbitConnected && <span style={{ fontSize: 10, background: T.greenLight, color: T.green, borderRadius: 20, padding: "2px 8px", fontWeight: 600 }}>Connected</span>}
                           </div>
                           {fitbitConnected ? (
@@ -801,23 +940,30 @@ export default function App() {
                             ) : <SubText>{fitbitSyncing ? "Syncing…" : "Click Sync to load today's data"}</SubText>
                           ) : <SubText>Connect your Fitbit for real-time health data</SubText>}
                         </div>
-                        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-                          {fitbitConnected && <button onClick={() => syncFitbit(authUser.id)} style={{ background: T.greenLight, border: `1px solid ${T.green}`, borderRadius: 8, padding: "8px 12px", color: T.green, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{fitbitSyncing ? "…" : "🔄"}</button>}
+                        <div style={{ display: "flex", gap: 6, flexShrink: 0, flexWrap: "wrap" }}>
+                          {fitbitConnected && <button onClick={() => syncFitbit(authUser.id)} style={{ background: T.greenLight, border: `1px solid ${T.green}`, borderRadius: 8, padding: "7px 10px", color: T.green, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{fitbitSyncing ? "…" : "🔄"}</button>}
                           <button onClick={() => window.location.href = `${API_URL}/fitbit/login/${authUser.id}`}
-                            style={{ background: fitbitConnected ? T.bg : T.green, border: `1px solid ${fitbitConnected ? T.border : T.green}`, borderRadius: 8, padding: "8px 12px", color: fitbitConnected ? T.muted : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                            style={{ background: fitbitConnected ? T.bg : T.green, border: `1px solid ${fitbitConnected ? T.border : T.green}`, borderRadius: 8, padding: "7px 10px", color: fitbitConnected ? T.muted : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
                             {fitbitConnected ? "Reconnect" : "🔗 Connect"}
                           </button>
+                          {fitbitConnected && (
+                            <button onClick={disconnectFitbit}
+                              style={{ background: T.redLight, border: `1px solid ${T.red}`, borderRadius: 8, padding: "7px 10px", color: T.red, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                              Disconnect
+                            </button>
+                          )}
                         </div>
                       </div>
                     </Card>
 
-                    {/* Strava Card */}
-                    <StravaCard
+                    {/* Strava Full Dashboard */}
+                    <StravaDashboard
                       authUser={authUser}
                       stravaConnected={stravaConnected}
                       stravaData={stravaData}
                       stravaSyncing={stravaSyncing}
                       onSync={() => syncStrava(authUser.id)}
+                      onDisconnect={disconnectStrava}
                       isMobile={isMobile}
                     />
 
@@ -866,7 +1012,7 @@ export default function App() {
 
                     {/* Insights */}
                     <SectionLabel>Insights</SectionLabel>
-                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(200px, 1fr))", gap: isMobile ? 10 : 16, marginBottom: isMobile ? 16 : 24 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3,1fr)", gap: isMobile ? 10 : 16, marginBottom: isMobile ? 16 : 24 }}>
                       {[
                         { icon: "😴", color: T.blue, bg: T.blueLight, label: "Sleep Coach", val: data.profile?.avg_sleep ? `${Math.floor(data.profile.avg_sleep / 60)}h recommended` : "9h recommended", sub: (data.profile?.avg_sleep ?? 480) < 420 ? "You could use more sleep." : "Good sleep pattern." },
                         { icon: "⚡", color: T.amber, bg: T.amberLight, label: "Forecast", val: data.forecast || "—", sub: "" },
@@ -885,7 +1031,7 @@ export default function App() {
                       ))}
                     </div>
 
-                    {/* At a Glance */}
+                    {/* At a Glance preview */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                       <SectionLabel>At a Glance</SectionLabel>
                       <button onClick={() => setTab("glance")} style={{ fontSize: 13, color: T.blue, background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>See All</button>
@@ -1131,7 +1277,6 @@ export default function App() {
           tab={tab} setTab={setTab}
           fetchRecovery={fetchRecovery} fetchGoal={fetchGoal}
           recovery={recovery} goal={goal}
-          loadingRec={loadingRec} loadingGoal={loadingGoal}
         />
       )}
     </>
