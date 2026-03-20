@@ -514,3 +514,49 @@ def strava_disconnect(user_id: str):
         return {"status": "disconnected"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+# ── Live Pipeline Endpoint ─────────────────────────────────────────────────────
+@app.get("/live/coach/{user_id}")
+def live_coach(user_id: str):
+    """Run full ML pipeline using live Fitbit + Strava data."""
+    try:
+        from agents.live_pipeline_agent import run_live_pipeline
+        result = run_live_pipeline(user_id)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/live/recovery/{user_id}")
+def live_recovery(user_id: str):
+    """Generate recovery plan from live data."""
+    try:
+        from agents.live_pipeline_agent import run_live_pipeline
+        from agents.decision_agent import generate_recovery_plan
+        pipeline = run_live_pipeline(user_id)
+        plan = generate_recovery_plan(
+            pipeline.get("profile", {}),
+            pipeline.get("trends", {}),
+            pipeline.get("fatigue", 1)
+        )
+        plan["recovery_index"] = pipeline.get("recovery_index")
+        plan["source"] = "live"
+        return plan
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/live/goal/{user_id}")
+def live_goal(user_id: str):
+    """Generate AI goal from live data."""
+    try:
+        from agents.live_pipeline_agent import run_live_pipeline
+        from agents.decision_agent import generate_ai_goal
+        pipeline = run_live_pipeline(user_id)
+        goal = generate_ai_goal(
+            pipeline.get("profile", {}),
+            pipeline.get("trends", {}),
+            pipeline.get("fatigue", 1)
+        )
+        goal["source"] = "live"
+        return goal
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
