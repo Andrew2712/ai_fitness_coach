@@ -533,7 +533,7 @@ def live_recovery(user_id: str, source: str = "auto"):
     """Generate recovery plan from live Fitbit or Strava data."""
     try:
         from agents.live_pipeline_agent import run_live_pipeline
-        from agents.decision_agent import generate_recovery_plan
+        from agents.analysis_agent import generate_recovery_plan
         pipeline = run_live_pipeline(user_id, preferred_source=source)
         if pipeline.get("source") == "none":
             raise HTTPException(status_code=400, detail="No live data source connected")
