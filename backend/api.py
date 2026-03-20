@@ -565,3 +565,4 @@ def live_goal(user_id: str, source: str = "auto"):
         if pipeline.get("source") == "none":
             raise HTTPException(status_code=400, detail="No live data source connected")
         goal = generate_ai_goal(
+# force redeploy
