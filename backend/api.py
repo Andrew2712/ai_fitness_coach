@@ -550,13 +550,6 @@ def live_recovery(user_id: str, source: str = "auto"):
             "health": pipeline.get("health"),
             "risk": pipeline.get("risk"),
         }
-            pipeline.get("profile", {}),
-            pipeline.get("trends", {}),
-            pipeline.get("fatigue", 1)
-        )
-        plan["recovery_index"] = pipeline.get("recovery_index")
-        plan["source"] = pipeline.get("source")
-        return plan
     except HTTPException:
         raise
     except Exception as e:
@@ -572,13 +565,3 @@ def live_goal(user_id: str, source: str = "auto"):
         if pipeline.get("source") == "none":
             raise HTTPException(status_code=400, detail="No live data source connected")
         goal = generate_ai_goal(
-            pipeline.get("profile", {}),
-            pipeline.get("trends", {}),
-            pipeline.get("fatigue", 1)
-        )
-        goal["source"] = pipeline.get("source")
-        return goal
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
