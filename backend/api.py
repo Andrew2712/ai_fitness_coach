@@ -537,7 +537,19 @@ def live_recovery(user_id: str, source: str = "auto"):
         pipeline = run_live_pipeline(user_id, preferred_source=source)
         if pipeline.get("source") == "none":
             raise HTTPException(status_code=400, detail="No live data source connected")
-        plan = generate_recovery_plan(
+        plan_list = generate_recovery_plan(
+            pipeline.get("fatigue", 1),
+            pipeline.get("recovery_index", 1),
+            pipeline.get("profile", {})
+        )
+        return {
+            "plan": plan_list,
+            "recovery_index": pipeline.get("recovery_index"),
+            "fatigue": pipeline.get("fatigue"),
+            "source": pipeline.get("source"),
+            "health": pipeline.get("health"),
+            "risk": pipeline.get("risk"),
+        }
             pipeline.get("profile", {}),
             pipeline.get("trends", {}),
             pipeline.get("fatigue", 1)
