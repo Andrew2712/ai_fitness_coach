@@ -558,11 +558,11 @@ export default function App() {
   const liveCharts = isLive ? buildLiveCharts(liveCoach, stravaData) : null;
   const dayL=["M","T","W","T","F","S","S"];
 
-  const hrChart    = liveCharts?.hr24  || ts?.hr?.length?ts?.hr:seeded(12345,24,58,140);
-  const sleepChart = liveCharts?.sleep7d || ts?.sleep?.length?ts?.sleep:seeded(12346,7,4,9);
-  const stepsChart = liveCharts?.steps7d || ts?.steps?.length?ts?.steps:seeded(12347,7,3000,14000);
-  const calChart   = liveCharts?.cal7d || ts?.calories?.length?ts?.calories:seeded(12348,7,1600,3200);
-  const hrvChart   = liveCharts?.hrv14 || ts?.hrv?.length?ts?.hrv:seeded(12349,14,1,4);
+  const hrChart    = liveCharts?.hr24   || (ts?.hr?.length     ? ts.hr       : seeded(12345,24,58,140));
+  const sleepChart = liveCharts?.sleep7d || (ts?.sleep?.length   ? ts.sleep    : seeded(12346,7,4,9));
+  const stepsChart = liveCharts?.steps7d || (ts?.steps?.length   ? ts.steps    : seeded(12347,7,3000,14000));
+  const calChart   = liveCharts?.cal7d   || (ts?.calories?.length ? ts.calories : seeded(12348,7,1600,3200));
+  const hrvChart   = liveCharts?.hrv14   || (ts?.hrv?.length     ? ts.hrv      : seeded(12349,14,1,4));
   const stressChart= liveCharts?.stress24 || seeded(12350,24,10,80);
 
   const tsLen=Math.min((sleepChart||[]).length,7), chartLabels=dayL.slice(0,tsLen);
