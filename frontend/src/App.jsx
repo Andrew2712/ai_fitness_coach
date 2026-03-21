@@ -838,15 +838,15 @@ export default function App() {
           {/* Main content */}
           <div style={{flex:1,padding:isMobile?"16px":"24px",overflowY:"auto",paddingBottom:isMobile?80:24}}>
             {/* Loading */}
-            {(loading||liveLoading)&&(
+            {(loading||(liveLoading&&!selectedDatasetUser))&&(
               <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"50vh",gap:12}}>
                 <div style={{width:40,height:40,borderRadius:"50%",border:`3px solid ${T.border}`,borderTopColor:T.blue,animation:"spin 0.8s linear infinite"}}/>
-                <div style={{fontSize:13,color:T.muted}}>{liveLoading?"Loading live data…":"Loading your data…"}</div>
+                <div style={{fontSize:13,color:T.muted}}>{liveLoading&&!selectedDatasetUser?"Loading live data…":"Loading your data…"}</div>
               </div>
             )}
 
             {/* Welcome screen — show when no data at all */}
-            {!hasData&&!loading&&!liveLoading&&tab==="home"&&(
+            {!hasData&&!loading&&tab==="home"&&(
               <WelcomeScreen
                 authUser={authUser}
                 fitbitConnected={fitbitConnected}
@@ -859,7 +859,7 @@ export default function App() {
             )}
 
             {/* Dashboard content */}
-            {hasData&&!loading&&!liveLoading&&(
+            {hasData&&!loading&&(displayData||!liveLoading)&&(
               <>
                 {/* ══ HOME ══ */}
                 {tab==="home"&&(
