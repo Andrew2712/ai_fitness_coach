@@ -37,10 +37,15 @@ function riskColor(v) {
   return T.green;
 }
 function fatigueInfo(v) {
-  if (v == null) return { label: "Unknown", color: T.muted, pct: 0 };
-  if (v === 2 || (typeof v === "string" && v.toUpperCase().includes("HIGH")))   return { label: "High",   color: T.red,   pct: 85 };
-  if (v === 1 || (typeof v === "string" && v.toUpperCase().includes("MED")))    return { label: "Medium", color: T.amber, pct: 52 };
-  if (v === 0 || (typeof v === "string" && v.toUpperCase().includes("LOW")))    return { label: "Low",    color: T.green, pct: 18 };
+  if (v === 2) return { label: "High",    color: T.red,   pct: 85 };
+  if (v === 1) return { label: "Medium",  color: T.amber, pct: 52 };
+  if (v === 0) return { label: "Low",     color: T.green, pct: 18 };
+  if (typeof v === "string") {
+    const s = v.toUpperCase();
+    if (s.includes("HIGH"))   return { label: "High",   color: T.red,   pct: 85 };
+    if (s.includes("MED"))    return { label: "Medium", color: T.amber, pct: 52 };
+    if (s.includes("LOW"))    return { label: "Low",    color: T.green, pct: 18 };
+  }
   return { label: "Unknown", color: T.muted, pct: 0 };
 }
 function healthColor(n) {
@@ -72,33 +77,50 @@ function useIsMobile() {
   return isMobile;
 }
 
+// ── Build chart arrays from live pipeline data ─────────────────────────────────
+function buildLiveCharts(liveCoach, stravaData) {
+  if (!liveCoach) return null;
+  const f = liveCoach.features || {};
+  const p = liveCoach.profile || {};
+  const week = stravaData?.week || {};
+  const month = stravaData?.month || {};
+
+  // Generate plausible 7-day patterns from Strava weekly data
+  const avgHR   = p.avg_hr || 72;
+  const sleep7d = week.time_min ? Array.from({length:7},(_,i)=> p.avg_sleep * (0.85 + Math.sin(i)*0.1)) : Array(7).fill(p.avg_sleep || 420);
+  const steps7d = Array.from({length:7},(_,i)=> (f["7d_steps"]||4595) * (0.7 + Math.random()*0.6));
+  const hr24    = Array.from({length:24},(_,i)=> avgHR + Math.sin(i/3)*8 + (Math.random()-0.5)*5);
+  const hrv14   = Array.from({length:14},(_,i)=> (f.HRV||2) + Math.sin(i/3)*0.3);
+  const cal7d   = Array.from({length:7},()=> (p.avg_cal||2200) + (Math.random()-0.5)*300);
+  const stress24= Array.from({length:24},(_,i)=> 20 + Math.sin(i/4)*15 + Math.random()*10);
+
+  return { hr24, sleep7d, steps7d, cal7d, hrv14, stress24 };
+}
+
 function SparkLine({ data, color, h = 40 }) {
   if (!data || data.length < 2) return (
     <svg viewBox="0 0 300 40" width="100%" height={h} preserveAspectRatio="none">
-      <line x1="0" y1={h/2} x2="300" y2={h/2} stroke={color} strokeWidth="1.5" opacity="0.3" strokeDasharray="4,4" />
+      <line x1="0" y1={h/2} x2="300" y2={h/2} stroke={color} strokeWidth="1.5" opacity="0.3" strokeDasharray="4,4"/>
     </svg>
   );
-  const W = 300, mn = Math.min(...data), mx = Math.max(...data), rng = mx - mn || 1;
-  const pts = data.map((v, i) => `${(i/(data.length-1))*W},${h-4-((v-mn)/rng)*(h-8)}`);
+  const W=300, mn=Math.min(...data), mx=Math.max(...data), rng=mx-mn||1;
+  const pts=data.map((v,i)=>`${(i/(data.length-1))*W},${h-4-((v-mn)/rng)*(h-8)}`);
   return (
     <svg viewBox={`0 0 ${W} ${h}`} width="100%" height={h} preserveAspectRatio="none">
-      <polygon points={`0,${h} ${pts.join(" ")} ${W},${h}`} fill={color} opacity="0.12" />
-      <polyline points={pts.join(" ")} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <polygon points={`0,${h} ${pts.join(" ")} ${W},${h}`} fill={color} opacity="0.12"/>
+      <polyline points={pts.join(" ")} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   );
 }
 
-function SparkBar({ data, color, h = 44, labels }) {
-  if (!data || !data.length) return (
+function SparkBar({ data, color, h=44, labels }) {
+  if (!data||!data.length) return (
     <svg viewBox="0 0 260 44" width="100%" height={h+(labels?14:0)} preserveAspectRatio="none">
       <text x="130" y="22" textAnchor="middle" fontSize="11" fill={T.muted} fontFamily="system-ui">No data</text>
     </svg>
   );
-  const W = 260;
-  const vd = data.map(v => (typeof v==="number"&&isFinite(v)?v:0));
-  const mx = Math.max(...vd)||1, gap=3;
-  const bw = Math.max(2,Math.floor((W-gap*(vd.length-1))/vd.length));
-  const tw = vd.length*(bw+gap)-gap;
+  const W=260, vd=data.map(v=>(typeof v==="number"&&isFinite(v)?v:0)), mx=Math.max(...vd)||1, gap=3;
+  const bw=Math.max(2,Math.floor((W-gap*(vd.length-1))/vd.length)), tw=vd.length*(bw+gap)-gap;
   return (
     <svg viewBox={`0 0 ${tw} ${h+(labels?14:0)}`} width="100%" height={h+(labels?14:0)} preserveAspectRatio="none">
       {vd.map((v,i)=>{
@@ -158,31 +180,77 @@ function MetricLabel({children}){return <div style={{fontSize:11,color:T.muted,f
 function BigNum({children,color,size=28}){return <div style={{fontSize:size,fontWeight:700,color:color||T.text,fontFamily:"'Nunito Sans','DM Sans',system-ui",lineHeight:1.1}}>{children}</div>;}
 function SubText({children}){return <div style={{fontSize:12,color:T.muted,fontFamily:"system-ui",marginTop:2}}>{children}</div>;}
 function Pill({children,color,bg}){return <span style={{display:"inline-block",background:bg||color+"18",color,borderRadius:20,padding:"2px 10px",fontSize:11,fontWeight:600,fontFamily:"system-ui"}}>{children}</span>;}
+function LiveBadge({source}){
+  const color=source==="fitbit"?T.cyan:source==="strava"?T.strava:T.green;
+  const label=source==="fitbit"?"⌚ Live · Fitbit":source==="strava"?"🏃 Live · Strava":"● Live Data";
+  return <span style={{display:"inline-flex",alignItems:"center",gap:4,background:color+"18",color,borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:700,fontFamily:"system-ui"}}>{label}</span>;
+}
 
-// Live Data Badge
-function LiveBadge({ source }) {
-  const color = source === "fitbit" ? T.cyan : source === "strava" ? T.strava : T.green;
-  const label = source === "fitbit" ? "⌚ Live · Fitbit" : source === "strava" ? "🏃 Live · Strava" : "● Live Data";
+function StravaIcon({size=16,color="#fc4c02"}){
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill={color}><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>;
+}
+function ActivityTypeIcon({type}){
+  return <span>{{Run:"🏃",Ride:"🚴",Walk:"🚶",Hike:"🥾",Swim:"🏊",Workout:"🏋️"}[type]||"⚡"}</span>;
+}
+
+// ── Welcome Screen ─────────────────────────────────────────────────────────────
+function WelcomeScreen({ authUser, fitbitConnected, stravaConnected, datasetUsers, onSelectDataset, onConnectFitbit, onConnectStrava }) {
+  const isMobile = useIsMobile();
   return (
-    <span style={{display:"inline-flex",alignItems:"center",gap:4,background:color+"18",color,borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:700,fontFamily:"system-ui"}}>
-      {label}
-    </span>
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"70vh",gap:24,padding:isMobile?"16px":"40px",textAlign:"center"}}>
+      <div style={{width:72,height:72,borderRadius:20,background:T.blue,display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,fontWeight:900,color:"#fff"}}>A</div>
+      <div>
+        <div style={{fontSize:isMobile?24:32,fontWeight:800,color:T.text,fontFamily:"'Nunito Sans',system-ui",marginBottom:8}}>Welcome, {authUser.username}! 👋</div>
+        <div style={{fontSize:15,color:T.muted,maxWidth:480}}>Connect your fitness tracker or select a dataset to get started with your personalised AI coaching dashboard.</div>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:16,width:"100%",maxWidth:600}}>
+        {/* Connect Fitbit */}
+        <Card accent={fitbitConnected?T.green:T.blue} style={{textAlign:"left",cursor:"pointer"}} onClick={onConnectFitbit}>
+          <div style={{fontSize:28,marginBottom:10}}>⌚</div>
+          <div style={{fontSize:16,fontWeight:700,color:T.text,marginBottom:4}}>Fitbit</div>
+          <div style={{fontSize:12,color:T.muted,marginBottom:12}}>Sync steps, sleep, heart rate and HRV from your Fitbit device</div>
+          {fitbitConnected
+            ? <Pill color={T.green} bg={T.greenLight}>✓ Connected</Pill>
+            : <button style={{background:T.blue,border:"none",borderRadius:8,padding:"8px 16px",color:"#fff",fontSize:12,fontWeight:600,cursor:"pointer"}}>Connect Fitbit</button>}
+        </Card>
+
+        {/* Connect Strava */}
+        <Card accent={stravaConnected?T.strava:T.border} style={{textAlign:"left",cursor:"pointer"}} onClick={onConnectStrava}>
+          <div style={{fontSize:28,marginBottom:10}}><StravaIcon size={28}/></div>
+          <div style={{fontSize:16,fontWeight:700,color:T.text,marginBottom:4}}>Strava</div>
+          <div style={{fontSize:12,color:T.muted,marginBottom:12}}>Sync running, cycling activities, pace, elevation and training load</div>
+          {stravaConnected
+            ? <Pill color={T.strava} bg={T.stravaLight}>✓ Connected</Pill>
+            : <button style={{background:T.strava,border:"none",borderRadius:8,padding:"8px 16px",color:"#fff",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}><StravaIcon size={14} color="#fff"/>Connect Strava</button>}
+        </Card>
+      </div>
+
+      {/* Or use dataset */}
+      {datasetUsers.length > 0 && (
+        <div style={{width:"100%",maxWidth:600}}>
+          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
+            <div style={{flex:1,height:1,background:T.border}}/><span style={{fontSize:12,color:T.muted}}>or explore with sample data</span><div style={{flex:1,height:1,background:T.border}}/>
+          </div>
+          <Card>
+            <MetricLabel>SELECT A SAMPLE DATASET USER</MetricLabel>
+            <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap"}}>
+              {datasetUsers.slice(0,6).map(u=>(
+                <button key={u} onClick={()=>onSelectDataset(u)}
+                  style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:8,padding:"6px 14px",fontSize:12,color:T.muted,cursor:"pointer",fontFamily:"system-ui"}}>
+                  #{String(u).slice(-4)}
+                </button>
+              ))}
+              {datasetUsers.length>6&&<span style={{fontSize:12,color:T.subtle,padding:"6px 0"}}>+{datasetUsers.length-6} more</span>}
+            </div>
+          </Card>
+        </div>
+      )}
+    </div>
   );
 }
 
-function StravaIcon({ size=16, color="#fc4c02" }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
-      <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/>
-    </svg>
-  );
-}
-
-function ActivityTypeIcon({ type }) {
-  const icons={Run:"🏃",Ride:"🚴",Walk:"🚶",Hike:"🥾",Swim:"🏊",Workout:"🏋️"};
-  return <span>{icons[type]||"⚡"}</span>;
-}
-
+// ── Strava Dashboard ───────────────────────────────────────────────────────────
 function StravaDashboard({ authUser, stravaConnected, stravaData, stravaSyncing, onSync, onDisconnect, isMobile }) {
   const [view, setView] = useState("week");
   if (!stravaConnected) {
@@ -190,9 +258,7 @@ function StravaDashboard({ authUser, stravaConnected, stravaData, stravaSyncing,
       <Card accent={T.border} style={{marginBottom:isMobile?16:24}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div>
-            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-              <StravaIcon size={20}/><span style={{fontSize:13,fontWeight:700,color:T.text}}>Strava</span>
-            </div>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}><StravaIcon size={20}/><span style={{fontSize:13,fontWeight:700,color:T.text}}>Strava</span></div>
             <SubText>Connect your Strava to see running & cycling data</SubText>
           </div>
           <button onClick={()=>window.location.href=`${API_URL}/strava/login/${authUser.id}`}
@@ -203,8 +269,8 @@ function StravaDashboard({ authUser, stravaConnected, stravaData, stravaSyncing,
       </Card>
     );
   }
-  const d = stravaData;
-  if (!d) return (
+  const d=stravaData;
+  if(!d) return (
     <Card accent={T.strava} style={{marginBottom:isMobile?16:24}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}><StravaIcon size={18}/><span style={{fontSize:13,fontWeight:600,color:T.strava}}>Strava Connected</span></div>
@@ -212,7 +278,7 @@ function StravaDashboard({ authUser, stravaConnected, stravaData, stravaSyncing,
       </div>
     </Card>
   );
-  const stats = view==="week"?d.week:view==="month"?d.month:null;
+  const stats=view==="week"?d.week:view==="month"?d.month:null;
   return (
     <Card accent={T.strava} style={{marginBottom:isMobile?16:24}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,flexWrap:"wrap",gap:8}}>
@@ -252,18 +318,10 @@ function StravaDashboard({ authUser, stravaConnected, stravaData, stravaSyncing,
               </div>
             ))}
           </div>
-          {stats.avg_hr&&(
-            <div style={{display:"flex",gap:10}}>
-              <div style={{background:T.redLight,borderRadius:8,padding:"8px 12px",flex:1}}>
-                <div style={{fontSize:11,color:T.muted}}>Avg Heart Rate</div>
-                <div style={{fontSize:18,fontWeight:700,color:T.red}}>{stats.avg_hr} bpm</div>
-              </div>
-              {stats.max_hr&&<div style={{background:T.redLight,borderRadius:8,padding:"8px 12px",flex:1}}>
-                <div style={{fontSize:11,color:T.muted}}>Max Heart Rate</div>
-                <div style={{fontSize:18,fontWeight:700,color:T.red}}>{stats.max_hr} bpm</div>
-              </div>}
-            </div>
-          )}
+          {stats.avg_hr&&<div style={{display:"flex",gap:10}}>
+            <div style={{background:T.redLight,borderRadius:8,padding:"8px 12px",flex:1}}><div style={{fontSize:11,color:T.muted}}>Avg HR</div><div style={{fontSize:18,fontWeight:700,color:T.red}}>{stats.avg_hr} bpm</div></div>
+            {stats.max_hr&&<div style={{background:T.redLight,borderRadius:8,padding:"8px 12px",flex:1}}><div style={{fontSize:11,color:T.muted}}>Max HR</div><div style={{fontSize:18,fontWeight:700,color:T.red}}>{stats.max_hr} bpm</div></div>}
+          </div>}
         </>
       )}
       {view==="ytd"&&(
@@ -283,7 +341,7 @@ function StravaDashboard({ authUser, stravaConnected, stravaData, stravaSyncing,
             ))}
           </div>
           <div style={{background:T.stravaLight,borderRadius:10,padding:14}}>
-            <div style={{fontSize:12,color:T.muted,marginBottom:8}}>All-Time Stats</div>
+            <div style={{fontSize:12,color:T.muted,marginBottom:8}}>All-Time</div>
             <div style={{display:"flex",gap:24}}>
               <div><div style={{fontSize:22,fontWeight:700,color:T.strava}}>{d.all_runs}</div><div style={{fontSize:11,color:T.muted}}>Total Runs</div></div>
               <div><div style={{fontSize:22,fontWeight:700,color:T.strava}}>{d.all_km} km</div><div style={{fontSize:11,color:T.muted}}>Total Distance</div></div>
@@ -349,16 +407,12 @@ function AuthPage({ onLogin }) {
     if(mode==="register"&&!username){setErr("Please enter a username");return;}
     setBusy(true);setErr("");
     try{
-      const endpoint=mode==="login"?"/auth/login":"/auth/register";
-      const body=mode==="login"?{email,password}:{email,username,password};
-      const r=await fetch(`${API_URL}${endpoint}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      const r=await fetch(`${API_URL}${mode==="login"?"/auth/login":"/auth/register"}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(mode==="login"?{email,password}:{email,username,password})});
       const d=await r.json();
       if(!r.ok)throw new Error(d.detail||"Something went wrong");
-      localStorage.setItem("acoach_token",d.token);
-      localStorage.setItem("acoach_user",JSON.stringify(d.user));
+      localStorage.setItem("acoach_token",d.token);localStorage.setItem("acoach_user",JSON.stringify(d.user));
       onLogin(d.user,d.token);
-    }catch(e){setErr(e.message);}
-    finally{setBusy(false);}
+    }catch(e){setErr(e.message);}finally{setBusy(false);}
   };
   return (
     <div style={{minHeight:"100vh",background:T.sidebar,display:"flex",flexDirection:isMobile?"column":"row",fontFamily:"system-ui"}}>
@@ -380,9 +434,7 @@ function AuthPage({ onLogin }) {
             <div style={{fontSize:14,color:"#94a3b8",lineHeight:1.7,marginBottom:40}}>AI-powered insights from your wearable data. Training readiness, recovery plans, and personalised goals — all in one place.</div>
             {["Training Readiness Score","7-Day Recovery Plans","AI Goal System","Fitbit & Strava Sync"].map(f=>(
               <div key={f} style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-                <div style={{width:18,height:18,borderRadius:"50%",background:T.blue+"30",border:`1px solid ${T.blue}`,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                  <div style={{width:6,height:6,borderRadius:"50%",background:T.blue}}/>
-                </div>
+                <div style={{width:18,height:18,borderRadius:"50%",background:T.blue+"30",border:`1px solid ${T.blue}`,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{width:6,height:6,borderRadius:"50%",background:T.blue}}/></div>
                 <span style={{fontSize:13,color:"#cbd5e1"}}>{f}</span>
               </div>
             ))}
@@ -394,10 +446,7 @@ function AuthPage({ onLogin }) {
           {isMobile&&(
             <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:32,justifyContent:"center"}}>
               <div style={{width:44,height:44,borderRadius:14,background:T.blue,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#fff"}}>A</div>
-              <div>
-                <div style={{fontFamily:"'Nunito Sans',system-ui",fontSize:20,fontWeight:800,color:T.text,letterSpacing:2}}>ACOACH</div>
-                <div style={{fontSize:10,color:T.muted,letterSpacing:1.5}}>AI FITNESS INTELLIGENCE</div>
-              </div>
+              <div><div style={{fontFamily:"'Nunito Sans',system-ui",fontSize:20,fontWeight:800,color:T.text,letterSpacing:2}}>ACOACH</div><div style={{fontSize:10,color:T.muted,letterSpacing:1.5}}>AI FITNESS INTELLIGENCE</div></div>
             </div>
           )}
           <div style={{marginBottom:24}}>
@@ -413,31 +462,13 @@ function AuthPage({ onLogin }) {
           </div>
           <Card style={{padding:isMobile?20:28}}>
             <div style={{display:"flex",flexDirection:"column",gap:16}}>
-              {mode==="register"&&(
-                <div>
-                  <label style={{display:"block",fontSize:12,fontWeight:600,color:T.muted,marginBottom:6,textTransform:"uppercase",letterSpacing:0.8}}>Username</label>
-                  <input value={username} onChange={e=>setUsername(e.target.value)} placeholder="johndoe" style={{width:"100%",background:T.bg,border:`1px solid ${T.border}`,borderRadius:8,padding:"11px 14px",color:T.text,fontSize:14,boxSizing:"border-box",outline:"none",fontFamily:"system-ui"}}/>
-                </div>
-              )}
-              <div>
-                <label style={{display:"block",fontSize:12,fontWeight:600,color:T.muted,marginBottom:6,textTransform:"uppercase",letterSpacing:0.8}}>Email</label>
-                <input value={email} onChange={e=>setEmail(e.target.value)} type="email" placeholder="you@example.com" style={{width:"100%",background:T.bg,border:`1px solid ${T.border}`,borderRadius:8,padding:"11px 14px",color:T.text,fontSize:14,boxSizing:"border-box",outline:"none",fontFamily:"system-ui"}}/>
-              </div>
-              <div>
-                <label style={{display:"block",fontSize:12,fontWeight:600,color:T.muted,marginBottom:6,textTransform:"uppercase",letterSpacing:0.8}}>Password</label>
-                <input value={password} onChange={e=>setPassword(e.target.value)} type="password" onKeyDown={e=>e.key==="Enter"&&submit()} placeholder="••••••••" style={{width:"100%",background:T.bg,border:`1px solid ${T.border}`,borderRadius:8,padding:"11px 14px",color:T.text,fontSize:14,boxSizing:"border-box",outline:"none",fontFamily:"system-ui"}}/>
-              </div>
+              {mode==="register"&&<div><label style={{display:"block",fontSize:12,fontWeight:600,color:T.muted,marginBottom:6,textTransform:"uppercase",letterSpacing:0.8}}>Username</label><input value={username} onChange={e=>setUsername(e.target.value)} placeholder="johndoe" style={{width:"100%",background:T.bg,border:`1px solid ${T.border}`,borderRadius:8,padding:"11px 14px",color:T.text,fontSize:14,boxSizing:"border-box",outline:"none",fontFamily:"system-ui"}}/></div>}
+              <div><label style={{display:"block",fontSize:12,fontWeight:600,color:T.muted,marginBottom:6,textTransform:"uppercase",letterSpacing:0.8}}>Email</label><input value={email} onChange={e=>setEmail(e.target.value)} type="email" placeholder="you@example.com" style={{width:"100%",background:T.bg,border:`1px solid ${T.border}`,borderRadius:8,padding:"11px 14px",color:T.text,fontSize:14,boxSizing:"border-box",outline:"none",fontFamily:"system-ui"}}/></div>
+              <div><label style={{display:"block",fontSize:12,fontWeight:600,color:T.muted,marginBottom:6,textTransform:"uppercase",letterSpacing:0.8}}>Password</label><input value={password} onChange={e=>setPassword(e.target.value)} type="password" onKeyDown={e=>e.key==="Enter"&&submit()} placeholder="••••••••" style={{width:"100%",background:T.bg,border:`1px solid ${T.border}`,borderRadius:8,padding:"11px 14px",color:T.text,fontSize:14,boxSizing:"border-box",outline:"none",fontFamily:"system-ui"}}/></div>
               {err&&<div style={{background:T.redLight,border:`1px solid ${T.red}40`,borderRadius:8,padding:"9px 12px",color:T.red,fontSize:12}}>⚠ {err}</div>}
-              <button onClick={submit} disabled={busy} style={{width:"100%",background:busy?T.border:T.blue,border:"none",borderRadius:8,padding:13,color:"#fff",fontFamily:"system-ui",fontSize:14,fontWeight:600,cursor:busy?"not-allowed":"pointer"}}>
-                {busy?"Please wait…":mode==="login"?"Sign In →":"Create Account →"}
-              </button>
-              <div style={{display:"flex",alignItems:"center",gap:12}}>
-                <div style={{flex:1,height:1,background:T.border}}/><span style={{fontSize:12,color:T.muted}}>or</span><div style={{flex:1,height:1,background:T.border}}/>
-              </div>
-              <button onClick={()=>window.location.href=`${API_URL}/strava/login/new`}
-                style={{width:"100%",background:T.strava,border:"none",borderRadius:8,padding:13,color:"#fff",fontFamily:"system-ui",fontSize:14,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-                <StravaIcon size={18} color="#fff"/>Continue with Strava
-              </button>
+              <button onClick={submit} disabled={busy} style={{width:"100%",background:busy?T.border:T.blue,border:"none",borderRadius:8,padding:13,color:"#fff",fontFamily:"system-ui",fontSize:14,fontWeight:600,cursor:busy?"not-allowed":"pointer"}}>{busy?"Please wait…":mode==="login"?"Sign In →":"Create Account →"}</button>
+              <div style={{display:"flex",alignItems:"center",gap:12}}><div style={{flex:1,height:1,background:T.border}}/><span style={{fontSize:12,color:T.muted}}>or</span><div style={{flex:1,height:1,background:T.border}}/></div>
+              <button onClick={()=>window.location.href=`${API_URL}/strava/login/new`} style={{width:"100%",background:T.strava,border:"none",borderRadius:8,padding:13,color:"#fff",fontFamily:"system-ui",fontSize:14,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}><StravaIcon size={18} color="#fff"/>Continue with Strava</button>
             </div>
           </Card>
           <div style={{textAlign:"center",marginTop:20,fontSize:12,color:T.subtle}}>Powered by wearable data • ACoach v2</div>
@@ -447,21 +478,12 @@ function AuthPage({ onLogin }) {
   );
 }
 
-function MobileBottomNav({ tab, setTab, onRecovery, onGoal, recovery, goal }) {
-  const items=[
-    {id:"home",icon:"⊞",label:"Home"},
-    {id:"glance",icon:"◎",label:"Glance"},
-    {id:"recovery",icon:"🧘",label:"Recovery"},
-    {id:"goal",icon:"🎯",label:"Goal"},
-  ];
+function MobileBottomNav({ tab, setTab, onRecovery, onGoal }) {
+  const items=[{id:"home",icon:"⊞",label:"Home"},{id:"glance",icon:"◎",label:"Glance"},{id:"recovery",icon:"🧘",label:"Recovery"},{id:"goal",icon:"🎯",label:"Goal"}];
   return (
     <div style={{position:"fixed",bottom:0,left:0,right:0,background:T.card,borderTop:`1px solid ${T.border}`,display:"flex",zIndex:200,paddingBottom:"env(safe-area-inset-bottom)"}}>
       {items.map(n=>(
-        <button key={n.id} onClick={()=>{
-          if(n.id==="recovery")onRecovery();
-          else if(n.id==="goal")onGoal();
-          else setTab(n.id);
-        }} style={{flex:1,padding:"10px 4px 8px",border:"none",background:"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+        <button key={n.id} onClick={()=>{if(n.id==="recovery")onRecovery();else if(n.id==="goal")onGoal();else setTab(n.id);}} style={{flex:1,padding:"10px 4px 8px",border:"none",background:"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
           <span style={{fontSize:20}}>{n.icon}</span>
           <span style={{fontSize:10,color:tab===n.id?T.blue:T.muted,fontWeight:tab===n.id?700:400,fontFamily:"system-ui"}}>{n.label}</span>
           {tab===n.id&&<div style={{width:4,height:4,borderRadius:"50%",background:T.blue}}/>}
@@ -483,38 +505,91 @@ function NavItem({ icon, label, active, onClick }) {
 }
 
 export default function App() {
-  const isMobile = useIsMobile();
+  const isMobile=useIsMobile();
   const [authUser,setAuthUser]     = useState(null);
   const [token,setToken]           = useState(null);
+  // Dataset state
   const [data,setData]             = useState(null);
   const [ts,setTs]                 = useState(null);
-  const [recovery,setRecovery]     = useState(null);
-  const [goal,setGoal]             = useState(null);
-  const [loading,setLoading]       = useState(false);
-  const [loadingRec,setLoadingRec] = useState(false);
-  const [loadingGoal,setLoadingGoal] = useState(false);
-  const [err,setErr]               = useState("");
-  const [tab,setTab]               = useState("home");
-  const [showFeedback,setShowFeedback] = useState(false);
-  const [animScore,setAnimScore]   = useState(0);
-  const [sidebarOpen,setSidebarOpen] = useState(true);
+  const [datasetUsers,setDatasetUsers] = useState([]);
+  const [selectedDatasetUser,setSelectedDatasetUser] = useState(null);
+  // Live state
+  const [liveCoach,setLiveCoach]   = useState(null);
+  const [liveLoading,setLiveLoading] = useState(false);
+  // Fitbit / Strava
   const [fitbitConnected,setFitbitConnected] = useState(false);
   const [fitbitData,setFitbitData] = useState(null);
   const [fitbitSyncing,setFitbitSyncing] = useState(false);
   const [stravaConnected,setStravaConnected] = useState(false);
   const [stravaData,setStravaData] = useState(null);
   const [stravaSyncing,setStravaSyncing] = useState(false);
-  const [datasetUsers,setDatasetUsers] = useState([]);
-  const [selectedDatasetUser,setSelectedDatasetUser] = useState(null);
-  const [liveMode,setLiveMode]     = useState(false);
+  // Recovery / Goal
+  const [recovery,setRecovery]     = useState(null);
+  const [goal,setGoal]             = useState(null);
+  const [loadingRec,setLoadingRec] = useState(false);
+  const [loadingGoal,setLoadingGoal] = useState(false);
+  const [showFeedback,setShowFeedback] = useState(false);
+  // UI
+  const [loading,setLoading]       = useState(false);
+  const [err,setErr]               = useState("");
+  const [tab,setTab]               = useState("home");
+  const [animScore,setAnimScore]   = useState(0);
+  const [sidebarOpen,setSidebarOpen] = useState(true);
 
-  const hrData     = useRef(seeded(12345,24,58,140));
-  const sleepData  = useRef(seeded(12346,7,4,9));
-  const stepsData  = useRef(seeded(12347,7,3000,14000));
-  const calData    = useRef(seeded(12348,7,1600,3200));
-  const hrvData    = useRef(seeded(12349,14,1,4));
-  const stressData = useRef(seeded(12350,24,10,80));
+  // Determine current data source
+  const isLive = (fitbitConnected || stravaConnected) && liveCoach;
+  const isDataset = !!data;
+  const hasData = isLive || isDataset;
+  const liveSource = fitbitConnected ? "fitbit" : stravaConnected ? "strava" : null;
 
+  // Build display data from either live or dataset
+  const displayData = isLive ? {
+    health:   liveCoach.health,
+    progress: liveCoach.progress,
+    risk:     liveCoach.risk,
+    burnout:  liveCoach.burnout,
+    profile:  liveCoach.profile,
+    trends:   liveCoach.trends,
+    forecast: "Performance likely stable.",
+    insight:  "Based on your live activity data.",
+  } : data;
+
+  // Build charts from live or dataset
+  const liveCharts = isLive ? buildLiveCharts(liveCoach, stravaData) : null;
+  const dayL=["M","T","W","T","F","S","S"];
+
+  const hrChart    = liveCharts?.hr24  || ts?.hr?.length?ts?.hr:seeded(12345,24,58,140);
+  const sleepChart = liveCharts?.sleep7d || ts?.sleep?.length?ts?.sleep:seeded(12346,7,4,9);
+  const stepsChart = liveCharts?.steps7d || ts?.steps?.length?ts?.steps:seeded(12347,7,3000,14000);
+  const calChart   = liveCharts?.cal7d || ts?.calories?.length?ts?.calories:seeded(12348,7,1600,3200);
+  const hrvChart   = liveCharts?.hrv14 || ts?.hrv?.length?ts?.hrv:seeded(12349,14,1,4);
+  const stressChart= liveCharts?.stress24 || seeded(12350,24,10,80);
+
+  const tsLen=Math.min((sleepChart||[]).length,7), chartLabels=dayL.slice(0,tsLen);
+  const latestHrv=(hrvChart||[]).length>0?hrvChart[hrvChart.length-1]:null;
+  const latestHrv7d=ts?.hrv_7d?.length?ts.hrv_7d[ts.hrv_7d.length-1]:latestHrv;
+  const hrvColor=latestHrv>2.5?T.green:latestHrv>1.5?T.amber:T.red;
+  const hrvStatus=latestHrv>2.5?"Balanced":latestHrv>1.5?"Low":latestHrv?"Poor":"N/A";
+
+  const fat      = fatigueInfo(isLive ? liveCoach?.fatigue : displayData?.burnout);
+  const progress = displayData?.progress ?? 0;
+  const health   = typeof displayData?.health==="number" ? displayData.health : displayData?.health?.score ?? null;
+  const hc       = healthColor(health);
+  const hl       = healthLabel(health);
+  const rc       = riskColor(displayData?.risk);
+  const tsStatus = (displayData?.burnout||"").toUpperCase().includes("HIGH")?"Overreaching"
+                 : (displayData?.burnout||"").toUpperCase().includes("MODERATE")?"Peaking"
+                 : (displayData?.risk||"").toUpperCase().includes("LOW")?"Productive":"Recovery";
+
+  // Animate health score
+  useEffect(()=>{
+    if(!health)return;
+    let raf,t0=null;
+    const go=stamp=>{if(!t0)t0=stamp;const p=Math.min((stamp-t0)/800,1);setAnimScore((1-Math.pow(1-p,3))*health);if(p<1)raf=requestAnimationFrame(go);};
+    raf=requestAnimationFrame(go);return()=>cancelAnimationFrame(raf);
+  },[health]);
+
+  // Restore session
   useEffect(()=>{
     const savedToken=localStorage.getItem("acoach_token");
     const savedUser=localStorage.getItem("acoach_user");
@@ -531,21 +606,18 @@ export default function App() {
       const fitData=await fitRes.json(),strData=await strRes.json();
       setFitbitConnected(fitData.connected);setStravaConnected(strData.connected);
       if(fitData.connected)syncFitbit(uid);
-      if(strData.connected)syncStrava(uid);
-      if(fitData.connected||strData.connected)setLiveMode(true);
+      if(strData.connected){syncStrava(uid);fetchLiveCoach(uid);}
     }catch{}
   };
 
   useEffect(()=>{
     if(authUser){
       checkIntegrations(authUser.id);
-      fetch(`${API_URL}/users`).then(r=>r.json()).then(d=>{
-        setDatasetUsers(d.users||[]);
-        if(d.users?.length){setSelectedDatasetUser(d.users[0]);fetchReport(d.users[0]);}
-      }).catch(()=>{});
+      fetch(`${API_URL}/users`).then(r=>r.json()).then(d=>{setDatasetUsers(d.users||[]);}).catch(()=>{});
     }
   },[authUser]);
 
+  // Handle OAuth callbacks
   useEffect(()=>{
     const params=new URLSearchParams(window.location.search);
     const dashUser=params.get("dashboard_user"),stravaOk=params.get("strava_connected");
@@ -553,28 +625,18 @@ export default function App() {
       window.history.replaceState({},"",window.location.pathname);
       const u=JSON.parse(localStorage.getItem("acoach_user")||"{}");
       if(u.id){
-        if(dashUser){setFitbitConnected(true);syncFitbit(u.id);}
-        if(stravaOk){setStravaConnected(true);syncStrava(u.id);}
-        setLiveMode(true);
+        if(dashUser){setFitbitConnected(true);syncFitbit(u.id);fetchLiveCoach(u.id);}
+        if(stravaOk){setStravaConnected(true);syncStrava(u.id);fetchLiveCoach(u.id);}
       }
     }
   },[]);
 
-  useEffect(()=>{
-    const seed=parseInt(selectedDatasetUser)||12345;
-    hrData.current=seeded(seed,24,58,140);sleepData.current=seeded(seed+1,7,4,9);
-    stepsData.current=seeded(seed+2,7,3000,14000);stressData.current=seeded(seed+3,24,10,80);
-    calData.current=seeded(seed+4,7,1600,3200);hrvData.current=seeded(seed+5,14,1,4);
-  },[selectedDatasetUser]);
-
-  useEffect(()=>{
-    const score=typeof data?.health==="number"?data.health:data?.health?.score??data?.health?.health_score??null;
-    if(!score)return;
-    let raf,t0=null;
-    const go=stamp=>{if(!t0)t0=stamp;const p=Math.min((stamp-t0)/800,1);setAnimScore((1-Math.pow(1-p,3))*score);if(p<1)raf=requestAnimationFrame(go);};
-    raf=requestAnimationFrame(go);
-    return()=>cancelAnimationFrame(raf);
-  },[data?.health]);
+  const fetchLiveCoach=async(uid)=>{
+    const id=uid||authUser?.id;if(!id)return;
+    setLiveLoading(true);
+    try{const r=await fetch(`${API_URL}/live/coach/${id}`);if(r.ok)setLiveCoach(await r.json());}catch{}
+    finally{setLiveLoading(false);}
+  };
 
   const fetchReport=async uid=>{
     setErr("");setData(null);setTs(null);setRecovery(null);setGoal(null);setLoading(true);
@@ -584,100 +646,57 @@ export default function App() {
       setData(await coachRes.json());
       if(tsRes.ok)setTs(await tsRes.json());
       setTab("home");
-    }catch(e){setErr(e.message);}
-    finally{setLoading(false);}
+    }catch(e){setErr(e.message);}finally{setLoading(false);}
   };
 
-  // ── Fetch Recovery — use live if connected ──────────────────────────────────
   const fetchRecovery=async()=>{
     setLoadingRec(true);setRecovery(null);
     try{
-      const isLive=liveMode&&(fitbitConnected||stravaConnected);
-      const url=isLive?`${API_URL}/live/recovery/${authUser.id}`:`${API_URL}/recovery/${selectedDatasetUser}`;
-      const r=await fetch(url);
-      if(r.ok)setRecovery(await r.json());
-      else throw new Error();
-    }catch{
-      setRecovery({plan:["Full Rest + Sleep","Full Rest + Sleep","Light Activity (20–30 min)","Light Activity (20–30 min)","Light Activity (20–30 min)","Light Activity (20–30 min)","Return to Training"],fatigue:1});
-    }
+      const isLiveAvail=fitbitConnected||stravaConnected;
+      const url=isLiveAvail?`${API_URL}/live/recovery/${authUser.id}`:`${API_URL}/recovery/${selectedDatasetUser}`;
+      const r=await fetch(url);if(r.ok)setRecovery(await r.json());else throw new Error();
+    }catch{setRecovery({plan:["Full Rest + Sleep","Full Rest + Sleep","Light Activity (20–30 min)","Light Activity (20–30 min)","Light Activity (20–30 min)","Light Activity (20–30 min)","Return to Training"],fatigue:1});}
     finally{setLoadingRec(false);setTab("recovery");}
   };
 
-  // ── Fetch Goal — use live if connected ──────────────────────────────────────
   const fetchGoal=async()=>{
     setLoadingGoal(true);setGoal(null);setShowFeedback(false);
     try{
-      const isLive=liveMode&&(fitbitConnected||stravaConnected);
-      const url=isLive?`${API_URL}/live/goal/${authUser.id}`:`${API_URL}/goal/${selectedDatasetUser}`;
-      const r=await fetch(url);
-      if(r.ok)setGoal(await r.json());
-      else throw new Error();
-    }catch{
-      setGoal({goal:"Active Recovery",focus:"Reduce load",plan:["Sleep 8+ hours nightly","Take 2 full rest days","Light walks 20–30 min","Drink 3L water daily","Breathing exercises"],explanation:["High fatigue","Low step count","HR trend elevated"]});
-    }
+      const isLiveAvail=fitbitConnected||stravaConnected;
+      const url=isLiveAvail?`${API_URL}/live/goal/${authUser.id}`:`${API_URL}/goal/${selectedDatasetUser}`;
+      const r=await fetch(url);if(r.ok)setGoal(await r.json());else throw new Error();
+    }catch{setGoal({goal:"Active Recovery",focus:"Reduce load",plan:["Sleep 8+ hours nightly","Take 2 full rest days","Light walks 20–30 min","Drink 3L water daily","Breathing exercises"],explanation:["High fatigue","Low step count","HR trend elevated"]});}
     finally{setLoadingGoal(false);setTab("goal");}
   };
 
   const syncFitbit=async(uid)=>{
     const id=uid||authUser?.id;if(!id)return;setFitbitSyncing(true);
-    try{const r=await fetch(`${API_URL}/fitbit/sync/${id}`);if(r.ok){const d=await r.json();setFitbitData(d.data);}}catch{}
-    finally{setFitbitSyncing(false);}
+    try{const r=await fetch(`${API_URL}/fitbit/sync/${id}`);if(r.ok){const d=await r.json();setFitbitData(d.data);}}catch{}finally{setFitbitSyncing(false);}
   };
-
   const syncStrava=async(uid)=>{
     const id=uid||authUser?.id;if(!id)return;setStravaSyncing(true);
-    try{const r=await fetch(`${API_URL}/strava/sync/${id}`);if(r.ok){const d=await r.json();setStravaData(d.data);}}catch{}
-    finally{setStravaSyncing(false);}
+    try{const r=await fetch(`${API_URL}/strava/sync/${id}`);if(r.ok){const d=await r.json();setStravaData(d.data);}}catch{}finally{setStravaSyncing(false);}
   };
-
   const disconnectFitbit=async()=>{
-    if(!confirm("Disconnect Fitbit? You can reconnect anytime."))return;
+    if(!confirm("Disconnect Fitbit?"))return;
     await fetch(`${API_URL}/fitbit/disconnect/${authUser.id}`,{method:"DELETE"});
     setFitbitConnected(false);setFitbitData(null);
-    if(!stravaConnected)setLiveMode(false);
+    if(!stravaConnected)setLiveCoach(null);
   };
-
   const disconnectStrava=async()=>{
-    if(!confirm("Disconnect Strava? You can reconnect anytime."))return;
+    if(!confirm("Disconnect Strava?"))return;
     await fetch(`${API_URL}/strava/disconnect/${authUser.id}`,{method:"DELETE"});
     setStravaConnected(false);setStravaData(null);
-    if(!fitbitConnected)setLiveMode(false);
+    if(!fitbitConnected)setLiveCoach(null);
   };
-
   const handleLogin=(user,tok)=>{setAuthUser(user);setToken(tok);};
   const handleLogout=()=>{
     localStorage.removeItem("acoach_token");localStorage.removeItem("acoach_user");
-    setAuthUser(null);setToken(null);setData(null);setTs(null);
-    setRecovery(null);setGoal(null);setFitbitConnected(false);setFitbitData(null);
-    setStravaConnected(false);setStravaData(null);setLiveMode(false);
+    setAuthUser(null);setToken(null);setData(null);setTs(null);setRecovery(null);setGoal(null);
+    setFitbitConnected(false);setFitbitData(null);setStravaConnected(false);setStravaData(null);setLiveCoach(null);
   };
 
   if(!authUser)return <AuthPage onLogin={handleLogin}/>;
-
-  const fat      = fatigueInfo(data?.burnout);
-  const progress = data?.progress??0;
-  const rc       = riskColor(data?.risk);
-  const health   = typeof data?.health==="number"?data.health:data?.health?.score??data?.health?.health_score??null;
-  const hc       = healthColor(health);
-  const hl       = healthLabel(health);
-  const dayL     = ["M","T","W","T","F","S","S"];
-
-  const hrChart    = ts?.hr?.length?ts.hr:hrData.current;
-  const sleepChart = ts?.sleep?.length?ts.sleep:sleepData.current;
-  const stepsChart = ts?.steps?.length?ts.steps:stepsData.current;
-  const calChart   = ts?.calories?.length?ts.calories:calData.current;
-  const hrvChart   = ts?.hrv?.length?ts.hrv:hrvData.current;
-  const stressChart= stressData.current;
-
-  const tsLen       = Math.min(sleepChart.length,7);
-  const chartLabels = dayL.slice(0,tsLen);
-  const latestHrv   = hrvChart.length>0?hrvChart[hrvChart.length-1]:null;
-  const latestHrv7d = ts?.hrv_7d?.length?ts.hrv_7d[ts.hrv_7d.length-1]:latestHrv;
-  const hrvColor    = latestHrv>2.5?T.green:latestHrv>1.5?T.amber:T.red;
-  const hrvStatus   = latestHrv>2.5?"Balanced":latestHrv>1.5?"Low":latestHrv?"Poor":"N/A";
-  const tsStatus    = (data?.burnout||"").toUpperCase().includes("HIGH")?"Overreaching"
-                    : (data?.burnout||"").toUpperCase().includes("MODERATE")?"Peaking"
-                    : (data?.risk||"").toUpperCase().includes("LOW")?"Productive":"Recovery";
 
   const navItems=[
     {id:"home",icon:"⊞",label:"Home"},
@@ -686,8 +705,6 @@ export default function App() {
     {id:"goal",icon:"🎯",label:"Goal"},
   ];
   const tabTitle=navItems.find(n=>n.id===tab)?.label||"Home";
-  const isLiveAvailable=fitbitConnected||stravaConnected;
-  const liveSource=fitbitConnected?"fitbit":stravaConnected?"strava":null;
 
   return (
     <>
@@ -696,30 +713,24 @@ export default function App() {
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
         html,body{background:${T.bg};font-family:'DM Sans',system-ui,sans-serif;color:${T.text};}
         ::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:${T.border};border-radius:4px;}
-        @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-        .fade{animation:fadeUp 0.25s ease both;}
-        @keyframes spin{to{transform:rotate(360deg)}}
-        select option{background:white;}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}.fade{animation:fadeUp 0.25s ease both;}
+        @keyframes spin{to{transform:rotate(360deg)}} select option{background:white;}
       `}</style>
 
       <div style={{display:"flex",minHeight:"100vh"}}>
+        {/* Sidebar */}
         {!isMobile&&(
           <div style={{width:sidebarOpen?220:64,background:T.sidebar,flexShrink:0,display:"flex",flexDirection:"column",transition:"width 0.2s ease",position:"sticky",top:0,height:"100vh",overflow:"hidden"}}>
             <div style={{padding:"20px 16px 16px",borderBottom:"1px solid #ffffff12"}}>
               <div style={{display:"flex",alignItems:"center",gap:10}}>
                 <div style={{width:36,height:36,borderRadius:10,background:T.blue,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:800,color:"#fff",flexShrink:0}}>A</div>
-                {sidebarOpen&&<div>
-                  <div style={{fontFamily:"'Nunito Sans',system-ui",fontSize:16,fontWeight:800,color:"#fff",letterSpacing:1.5}}>ACOACH</div>
-                  <div style={{fontSize:10,color:"#64748b",letterSpacing:1}}>FITNESS AI</div>
-                </div>}
+                {sidebarOpen&&<div><div style={{fontFamily:"'Nunito Sans',system-ui",fontSize:16,fontWeight:800,color:"#fff",letterSpacing:1.5}}>ACOACH</div><div style={{fontSize:10,color:"#64748b",letterSpacing:1}}>FITNESS AI</div></div>}
               </div>
             </div>
             {sidebarOpen&&(
               <div style={{padding:"12px 16px",borderBottom:"1px solid #ffffff10"}}>
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <div style={{width:32,height:32,borderRadius:"50%",background:T.blue+"30",border:`1px solid ${T.blue}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:T.blue,flexShrink:0}}>
-                    {authUser.username?.slice(0,2).toUpperCase()||"??"}
-                  </div>
+                  <div style={{width:32,height:32,borderRadius:"50%",background:T.blue+"30",border:`1px solid ${T.blue}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:T.blue,flexShrink:0}}>{authUser.username?.slice(0,2).toUpperCase()||"??"}</div>
                   <div>
                     <div style={{fontSize:12,fontWeight:600,color:"#e2e8f0"}}>{authUser.username}</div>
                     <div style={{fontSize:10,color:T.muted}}>{authUser.email}</div>
@@ -740,17 +751,25 @@ export default function App() {
               {sidebarOpen&&<div style={{fontSize:10,color:"#475569",letterSpacing:1.2,textTransform:"uppercase",padding:"16px 8px 8px",fontWeight:600}}>Plans</div>}
               <NavItem icon="🧘" label={sidebarOpen?(loadingRec?"Loading…":"Recovery Plan"):""} active={false} onClick={fetchRecovery}/>
               <NavItem icon="🎯" label={sidebarOpen?(loadingGoal?"Loading…":"AI Goal"):""} active={false} onClick={fetchGoal}/>
-              {sidebarOpen&&isLiveAvailable&&(
+              {/* Dataset selector in sidebar */}
+              {sidebarOpen&&datasetUsers.length>0&&(
                 <div style={{margin:"12px 8px 0",padding:"10px 12px",background:"#ffffff08",borderRadius:8,border:"1px solid #ffffff12"}}>
-                  <div style={{fontSize:10,color:"#64748b",marginBottom:6,textTransform:"uppercase",letterSpacing:1}}>Data Source</div>
+                  <div style={{fontSize:10,color:"#64748b",marginBottom:6,textTransform:"uppercase",letterSpacing:1}}>Sample Data</div>
+                  <select value={selectedDatasetUser||""} onChange={e=>{setSelectedDatasetUser(e.target.value);fetchReport(e.target.value);}}
+                    style={{width:"100%",background:"#ffffff12",border:"1px solid #ffffff20",borderRadius:6,padding:"6px 8px",fontSize:11,color:"#94a3b8",cursor:"pointer",outline:"none"}}>
+                    <option value="">Select dataset…</option>
+                    {datasetUsers.map(u=><option key={u} value={u} style={{background:"#1a1f2e"}}>User #{String(u).slice(-6)}</option>)}
+                  </select>
+                </div>
+              )}
+              {/* Data source indicator */}
+              {sidebarOpen&&(
+                <div style={{margin:"8px 8px 0",padding:"8px 12px",background:"#ffffff08",borderRadius:8}}>
+                  <div style={{fontSize:10,color:"#64748b",marginBottom:4,textTransform:"uppercase",letterSpacing:1}}>Data Source</div>
                   <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <div style={{width:6,height:6,borderRadius:"50%",background:liveMode?T.green:T.muted}}/>
-                    <span style={{fontSize:11,color:liveMode?T.green:"#94a3b8"}}>{liveMode?"Live Data":"Dataset"}</span>
+                    <div style={{width:6,height:6,borderRadius:"50%",background:isLive?T.green:isDataset?T.blue:T.muted}}/>
+                    <span style={{fontSize:11,color:isLive?T.green:isDataset?T.blue:"#94a3b8"}}>{isLive?"Live Data":isDataset?"Dataset":"No data"}</span>
                   </div>
-                  <button onClick={()=>setLiveMode(v=>!v)}
-                    style={{marginTop:6,width:"100%",background:"transparent",border:`1px solid ${liveMode?T.green+"40":T.muted+"40"}`,borderRadius:6,padding:"4px 8px",color:liveMode?T.green:"#94a3b8",fontSize:10,cursor:"pointer"}}>
-                    Switch to {liveMode?"Dataset":"Live"}
-                  </button>
                 </div>
               )}
             </div>
@@ -772,103 +791,135 @@ export default function App() {
               <div style={{fontSize:isMobile?15:18,fontWeight:700,color:T.text,fontFamily:"'Nunito Sans',system-ui"}}>{tabTitle}</div>
               <div style={{fontSize:11,color:T.muted}}>{authUser.username} • {new Date().toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})}</div>
             </div>
+            {/* Dataset selector in header (mobile + desktop when no sidebar) */}
             {!isMobile&&datasetUsers.length>0&&(
               <select value={selectedDatasetUser||""} onChange={e=>{setSelectedDatasetUser(e.target.value);fetchReport(e.target.value);}}
                 style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:8,padding:"6px 12px",fontSize:12,color:T.text,cursor:"pointer",outline:"none"}}>
+                <option value="">Select dataset…</option>
                 {datasetUsers.map(u=><option key={u} value={u}>Dataset: {u}</option>)}
               </select>
             )}
-            {/* Live Mode Toggle */}
-            {isLiveAvailable&&!isMobile&&(
-              <button onClick={()=>setLiveMode(v=>!v)}
-                style={{background:liveMode?T.greenLight:T.bg,border:`1px solid ${liveMode?T.green:T.border}`,borderRadius:8,padding:"6px 12px",color:liveMode?T.green:T.muted,fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
-                <div style={{width:6,height:6,borderRadius:"50%",background:liveMode?T.green:T.muted}}/>
-                {liveMode?"Live":"Dataset"}
+            {/* Only show Fitbit button when connected */}
+            {fitbitConnected&&(
+              <button onClick={()=>window.location.href=`${API_URL}/fitbit/login/${authUser.id}`}
+                style={{background:T.greenLight,border:`1px solid ${T.green}`,borderRadius:8,padding:isMobile?"6px 8px":"6px 14px",color:T.green,fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap"}}>
+                <span>⌚</span><span>{isMobile?"✓":"Fitbit ✓"}</span>
               </button>
             )}
-            <button onClick={()=>window.location.href=`${API_URL}/fitbit/login/${authUser.id}`}
-              style={{background:fitbitConnected?T.greenLight:T.blueLight,border:`1px solid ${fitbitConnected?T.green:T.blue}`,borderRadius:8,padding:isMobile?"6px 8px":"6px 14px",color:fitbitConnected?T.green:T.blue,fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap"}}>
-              <span>⌚</span><span>{fitbitConnected?(isMobile?"✓":"Fitbit ✓"):"Fitbit"}</span>
-            </button>
+            {/* Strava button — always shown */}
             <button onClick={()=>window.location.href=`${API_URL}/strava/login/${authUser.id}`}
               style={{background:stravaConnected?T.stravaLight:T.strava,border:`1px solid ${T.strava}`,borderRadius:8,padding:isMobile?"6px 8px":"6px 14px",color:stravaConnected?T.strava:"#fff",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap"}}>
               <StravaIcon size={13} color={stravaConnected?T.strava:"#fff"}/><span>{stravaConnected?(isMobile?"✓":"Strava ✓"):"Strava"}</span>
             </button>
+            {/* Fitbit connect button when not connected */}
+            {!fitbitConnected&&(
+              <button onClick={()=>window.location.href=`${API_URL}/fitbit/login/${authUser.id}`}
+                style={{background:T.blueLight,border:`1px solid ${T.blue}`,borderRadius:8,padding:isMobile?"6px 8px":"6px 14px",color:T.blue,fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap"}}>
+                <span>⌚</span><span>{isMobile?"Fitbit":"Fitbit"}</span>
+              </button>
+            )}
             {isMobile&&<button onClick={handleLogout} style={{width:32,height:32,borderRadius:8,border:`1px solid ${T.border}`,background:"transparent",cursor:"pointer",fontSize:14,color:T.muted}}>↩</button>}
             {err&&<div style={{background:T.redLight,color:T.red,borderRadius:8,padding:"6px 12px",fontSize:12}}>⚠ {err}</div>}
           </div>
 
+          {/* Mobile dataset selector */}
           {isMobile&&datasetUsers.length>0&&(
-            <div style={{background:T.card,borderBottom:`1px solid ${T.border}`,padding:"8px 16px",display:"flex",gap:8,alignItems:"center"}}>
+            <div style={{background:T.card,borderBottom:`1px solid ${T.border}`,padding:"8px 16px"}}>
               <select value={selectedDatasetUser||""} onChange={e=>{setSelectedDatasetUser(e.target.value);fetchReport(e.target.value);}}
-                style={{flex:1,background:T.bg,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,color:T.text,cursor:"pointer",outline:"none"}}>
+                style={{width:"100%",background:T.bg,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,color:T.text,cursor:"pointer",outline:"none"}}>
+                <option value="">Select dataset user…</option>
                 {datasetUsers.map(u=><option key={u} value={u}>Dataset: {u}</option>)}
               </select>
-              {isLiveAvailable&&(
-                <button onClick={()=>setLiveMode(v=>!v)}
-                  style={{background:liveMode?T.greenLight:T.bg,border:`1px solid ${liveMode?T.green:T.border}`,borderRadius:8,padding:"8px 12px",color:liveMode?T.green:T.muted,fontSize:12,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}}>
-                  {liveMode?"🟢 Live":"⚪ Dataset"}
-                </button>
-              )}
             </div>
           )}
 
+          {/* Main content */}
           <div style={{flex:1,padding:isMobile?"16px":"24px",overflowY:"auto",paddingBottom:isMobile?80:24}}>
-            {loading&&(
+            {/* Loading */}
+            {(loading||liveLoading)&&(
               <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"50vh",gap:12}}>
                 <div style={{width:40,height:40,borderRadius:"50%",border:`3px solid ${T.border}`,borderTopColor:T.blue,animation:"spin 0.8s linear infinite"}}/>
-                <div style={{fontSize:13,color:T.muted}}>Loading your data…</div>
+                <div style={{fontSize:13,color:T.muted}}>{liveLoading?"Loading live data…":"Loading your data…"}</div>
               </div>
             )}
 
-            {data&&!loading&&(
+            {/* Welcome screen — show when no data at all */}
+            {!hasData&&!loading&&!liveLoading&&tab==="home"&&(
+              <WelcomeScreen
+                authUser={authUser}
+                fitbitConnected={fitbitConnected}
+                stravaConnected={stravaConnected}
+                datasetUsers={datasetUsers}
+                onSelectDataset={uid=>{setSelectedDatasetUser(uid);fetchReport(uid);}}
+                onConnectFitbit={()=>window.location.href=`${API_URL}/fitbit/login/${authUser.id}`}
+                onConnectStrava={()=>window.location.href=`${API_URL}/strava/login/${authUser.id}`}
+              />
+            )}
+
+            {/* Dashboard content */}
+            {hasData&&!loading&&!liveLoading&&(
               <>
                 {/* ══ HOME ══ */}
                 {tab==="home"&&(
                   <div className="fade">
-                    {/* Live mode banner */}
-                    {liveMode&&isLiveAvailable&&(
+                    {/* Live banner */}
+                    {isLive&&(
                       <div style={{display:"flex",alignItems:"center",gap:8,background:T.greenLight,border:`1px solid ${T.green}30`,borderRadius:10,padding:"10px 14px",marginBottom:16}}>
                         <LiveBadge source={liveSource}/>
-                        <span style={{fontSize:12,color:T.green}}>Recovery and Goal plans are using your real {liveSource} data</span>
+                        <span style={{fontSize:12,color:T.green}}>Dashboard is powered by your real {liveSource} data</span>
                       </div>
                     )}
 
                     {/* Summary cards */}
                     <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr 1fr":"repeat(auto-fit,minmax(200px,1fr))",gap:isMobile?12:16,marginBottom:isMobile?16:24}}>
+                      {/* Training Readiness */}
                       <Card accent={hc}>
                         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                           <div>
-                            <MetricLabel>Readiness</MetricLabel>
+                            <MetricLabel>Training Readiness</MetricLabel>
                             <BigNum color={hc} size={isMobile?26:32}>{health!=null?Math.round(animScore):"—"}</BigNum>
-                            <SubText>{hl} · {data.risk||"—"}</SubText>
+                            <SubText>{hl} · {displayData?.risk||"—"}</SubText>
                           </div>
                           <Ring pct={health??0} color={hc} size={isMobile?48:60} stroke={5}>
                             <span style={{fontSize:isMobile?11:14,fontWeight:700,color:hc}}>{health!=null?Math.round(animScore):"—"}</span>
                           </Ring>
                         </div>
                       </Card>
+
+                      {/* Body Battery / Charge */}
                       <Card accent={fat.color}>
-                        <MetricLabel>Body Battery</MetricLabel>
+                        <MetricLabel>Body Charge</MetricLabel>
                         <div style={{display:"flex",alignItems:"center",gap:8}}>
                           <Ring pct={progress} color={progress>60?T.green:progress>30?T.amber:T.red} size={isMobile?48:60} stroke={5}>
                             <span style={{fontSize:isMobile?11:14,fontWeight:700}}>{progress}</span>
                           </Ring>
-                          <div><BigNum size={isMobile?22:28}>{progress}</BigNum><SubText>+{Math.round(progress*0.6)} charged</SubText></div>
+                          <div>
+                            <BigNum size={isMobile?22:28}>{progress}</BigNum>
+                            <SubText>+{Math.round(progress*0.6)} charged</SubText>
+                          </div>
                         </div>
                       </Card>
+
+                      {/* Sleep */}
                       <Card>
-                        <MetricLabel>Sleep Coach</MetricLabel>
-                        <BigNum size={isMobile?18:24}>{data.profile?.avg_sleep?`${Math.floor(data.profile.avg_sleep/60)}h ${Math.round(data.profile.avg_sleep%60)}m`:"8h rec."}</BigNum>
-                        <SubText>{(data.profile?.avg_sleep??480)<420?"Need more sleep.":"Sleep on track."}</SubText>
+                        <MetricLabel>Sleep</MetricLabel>
+                        <BigNum size={isMobile?18:24}>
+                          {displayData?.profile?.avg_sleep
+                            ?`${Math.floor(displayData.profile.avg_sleep/60)}h ${Math.round(displayData.profile.avg_sleep%60)}m`
+                            :isLive?`${Math.floor((liveCoach.features?.TotalMinutesAsleep||420)/60)}h ${(liveCoach.features?.TotalMinutesAsleep||420)%60}m`
+                            :"—"}
+                        </BigNum>
+                        <SubText>{(displayData?.profile?.avg_sleep??420)<420?"Need more sleep.":"Sleep on track."}</SubText>
                       </Card>
+
+                      {/* HRV */}
                       <Card>
                         <MetricLabel>HRV Status</MetricLabel>
                         <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
                           <div style={{width:8,height:8,borderRadius:"50%",background:hrvColor}}/>
                           <BigNum color={hrvColor} size={isMobile?16:22}>{hrvStatus}</BigNum>
                         </div>
-                        <SubText>{latestHrv7d!=null?latestHrv7d.toFixed(2)+" RMSSD":"No data"}</SubText>
+                        <SubText>{latestHrv7d!=null?latestHrv7d.toFixed(2)+" RMSSD":isLive?`${liveCoach.features?.HRV||2} RMSSD`:"No data"}</SubText>
                       </Card>
                     </div>
 
@@ -901,7 +952,7 @@ export default function App() {
                                 ))}
                               </div>
                             ):<SubText>{fitbitSyncing?"Syncing…":"Click Sync to load today's data"}</SubText>
-                          ):<SubText>Connect your Fitbit for real-time health data</SubText>}
+                          ):<SubText>Connect your Fitbit for real-time steps, sleep, heart rate and HRV</SubText>}
                         </div>
                         <div style={{display:"flex",gap:6,flexShrink:0,flexWrap:"wrap"}}>
                           {fitbitConnected&&<button onClick={()=>syncFitbit(authUser.id)} style={{background:T.greenLight,border:`1px solid ${T.green}`,borderRadius:8,padding:"7px 10px",color:T.green,fontSize:12,fontWeight:600,cursor:"pointer"}}>{fitbitSyncing?"…":"🔄"}</button>}
@@ -923,19 +974,16 @@ export default function App() {
                       <Card>
                         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
                           <div style={{width:30,height:30,borderRadius:"50%",background:hc+"20",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>🏃</div>
-                          <div>
-                            <div style={{fontSize:13,fontWeight:600,color:T.text}}>Training Readiness</div>
-                            <div style={{fontSize:11,color:T.muted}}>Balance your training load</div>
-                          </div>
+                          <div><div style={{fontSize:13,fontWeight:600,color:T.text}}>Training Readiness</div><div style={{fontSize:11,color:T.muted}}>Balance your training load</div></div>
                         </div>
                         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px 16px"}}>
                           {[
-                            {label:"Sleep",val:(data.profile?.avg_sleep??450)<420?"Fair":"Good",color:(data.profile?.avg_sleep??450)<420?T.amber:T.green},
+                            {label:"Sleep",val:(displayData?.profile?.avg_sleep??450)<420?"Fair":"Good",color:(displayData?.profile?.avg_sleep??450)<420?T.amber:T.green},
                             {label:"Recovery",val:health>=60?"Good":health>=35?"Moderate":"Low",color:hc},
                             {label:"HRV",val:hrvStatus,color:hrvColor},
                             {label:"Acute Load",val:fat.label,color:fat.color},
                             {label:"Progress",val:`${progress}%`,color:T.blue},
-                            {label:"Risk",val:data.risk||"—",color:rc},
+                            {label:"Risk",val:displayData?.risk||"—",color:rc},
                           ].map(r=>(
                             <div key={r.label}>
                               <div style={{fontSize:13,fontWeight:700,color:r.color}}>{r.val}</div>
@@ -946,17 +994,14 @@ export default function App() {
                       </Card>
                       <Card>
                         <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
-                          <div>
-                            <div style={{fontSize:11,color:T.muted,marginBottom:4}}>Training Status</div>
-                            <BigNum size={isMobile?18:20}>{tsStatus}</BigNum>
-                          </div>
+                          <div><div style={{fontSize:11,color:T.muted,marginBottom:4}}>Training Status</div><BigNum size={isMobile?18:20}>{tsStatus}</BigNum></div>
                           <div style={{textAlign:"right"}}>
                             <Pill color={T.green} bg={T.greenLight}>VO₂ Good</Pill>
                             <div style={{marginTop:4}}><Pill color={fat.color} bg={fat.color+"18"}>{fat.label} Load</Pill></div>
                           </div>
                         </div>
                         <StatusBar value={tsStatus}/>
-                        <div style={{marginTop:10,fontSize:12,color:T.muted,lineHeight:1.5}}>{data.burnout||"—"}</div>
+                        <div style={{marginTop:10,fontSize:12,color:T.muted,lineHeight:1.5}}>{displayData?.burnout||"—"}</div>
                       </Card>
                     </div>
 
@@ -964,18 +1009,16 @@ export default function App() {
                     <SectionLabel>Insights</SectionLabel>
                     <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,1fr)",gap:isMobile?10:16,marginBottom:isMobile?16:24}}>
                       {[
-                        {icon:"😴",color:T.blue,bg:T.blueLight,label:"Sleep Coach",val:data.profile?.avg_sleep?`${Math.floor(data.profile.avg_sleep/60)}h recommended`:"9h recommended",sub:(data.profile?.avg_sleep??480)<420?"You could use more sleep.":"Good sleep pattern."},
-                        {icon:"⚡",color:T.amber,bg:T.amberLight,label:"Forecast",val:data.forecast||"—",sub:""},
-                        {icon:"💡",color:T.purple,bg:T.purpleLight,label:"Insight",val:data.insight||"—",sub:""},
+                        {icon:"😴",color:T.blue,bg:T.blueLight,label:"Sleep Coach",
+                          val:displayData?.profile?.avg_sleep?`${Math.floor(displayData.profile.avg_sleep/60)}h recommended`:"7h recommended",
+                          sub:(displayData?.profile?.avg_sleep??480)<420?"You could use more sleep.":"Good sleep pattern."},
+                        {icon:"⚡",color:T.amber,bg:T.amberLight,label:"Forecast",val:displayData?.forecast||"—",sub:""},
+                        {icon:"💡",color:T.purple,bg:T.purpleLight,label:"Insight",val:displayData?.insight||"—",sub:""},
                       ].map(item=>(
                         <Card key={item.label} style={{borderLeft:`3px solid ${item.color}`}}>
                           <div style={{display:"flex",alignItems:"center",gap:10}}>
                             <div style={{width:32,height:32,borderRadius:"50%",background:item.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>{item.icon}</div>
-                            <div>
-                              <MetricLabel>{item.label}</MetricLabel>
-                              <div style={{fontSize:13,fontWeight:600,color:T.text}}>{item.val}</div>
-                              {item.sub&&<SubText>{item.sub}</SubText>}
-                            </div>
+                            <div><MetricLabel>{item.label}</MetricLabel><div style={{fontSize:13,fontWeight:600,color:T.text}}>{item.val}</div>{item.sub&&<SubText>{item.sub}</SubText>}</div>
                           </div>
                         </Card>
                       ))}
@@ -988,10 +1031,10 @@ export default function App() {
                     </div>
                     <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr 1fr":"repeat(4,1fr)",gap:isMobile?10:16,marginBottom:isMobile?16:24}}>
                       {[
-                        {label:"Heart Rate",val:`${data.profile?.avg_hr??72}`,unit:"bpm",chart:<SparkLine data={hrChart} color={T.red} h={32}/>},
-                        {label:"Sleep",val:`${data.profile?.avg_sleep?Math.floor(data.profile.avg_sleep/60):6}h ${data.profile?.avg_sleep?Math.round(data.profile.avg_sleep%60):24}m`,unit:"Duration",chart:<SparkBar data={sleepChart.slice(0,7)} color={T.purple} h={32}/>},
-                        {label:"HRV",val:latestHrv7d?latestHrv7d.toFixed(0)+" ms":"—",unit:"7d Avg",chart:<SparkLine data={hrvChart} color={hrvColor} h={32}/>},
-                        {label:"Steps",val:(data.profile?.avg_steps??7500).toLocaleString(),unit:"daily avg",chart:<SparkBar data={stepsChart.slice(0,7)} color={T.blue} h={32}/>},
+                        {label:"Heart Rate",val:`${displayData?.profile?.avg_hr??72}`,unit:"bpm",chart:<SparkLine data={hrChart} color={T.red} h={32}/>},
+                        {label:"Sleep",val:`${displayData?.profile?.avg_sleep?Math.floor(displayData.profile.avg_sleep/60):isLive?Math.floor((liveCoach.features?.TotalMinutesAsleep||420)/60):6}h`,unit:"Duration",chart:<SparkBar data={sleepChart?.slice(0,7)} color={T.purple} h={32}/>},
+                        {label:"HRV",val:latestHrv7d?latestHrv7d.toFixed(0)+" ms":isLive?`${(liveCoach.features?.HRV||2).toFixed(1)} ms`:"—",unit:"7d Avg",chart:<SparkLine data={hrvChart} color={hrvColor} h={32}/>},
+                        {label:"Steps",val:(displayData?.profile?.avg_steps??isLive?liveCoach.features?.TotalSteps??0:7500).toLocaleString(),unit:"daily avg",chart:<SparkBar data={stepsChart?.slice(0,7)} color={T.blue} h={32}/>},
                       ].map(m=>(
                         <Card key={m.label}>
                           <MetricLabel>{m.label}</MetricLabel>
@@ -1009,13 +1052,13 @@ export default function App() {
                         <div style={{fontSize:isMobile?22:28,marginBottom:8}}>🧘</div>
                         <div style={{fontSize:isMobile?13:15,fontWeight:700,marginBottom:4,fontFamily:"'Nunito Sans',system-ui"}}>{loadingRec?"Loading…":"Recovery Plan"}</div>
                         <div style={{fontSize:11,color:T.muted}}>7-day programme</div>
-                        {liveMode&&isLiveAvailable&&<div style={{marginTop:6}}><LiveBadge source={liveSource}/></div>}
+                        {(fitbitConnected||stravaConnected)&&<div style={{marginTop:6}}><LiveBadge source={liveSource}/></div>}
                       </button>
                       <button onClick={fetchGoal} style={{background:T.card,border:`1px solid ${T.green}44`,borderRadius:12,padding:isMobile?14:20,color:T.green,textAlign:"left",cursor:"pointer"}}>
                         <div style={{fontSize:isMobile?22:28,marginBottom:8}}>🎯</div>
                         <div style={{fontSize:isMobile?13:15,fontWeight:700,marginBottom:4,fontFamily:"'Nunito Sans',system-ui"}}>{loadingGoal?"Loading…":"AI Goal"}</div>
                         <div style={{fontSize:11,color:T.muted}}>Personalised target</div>
-                        {liveMode&&isLiveAvailable&&<div style={{marginTop:6}}><LiveBadge source={liveSource}/></div>}
+                        {(fitbitConnected||stravaConnected)&&<div style={{marginTop:6}}><LiveBadge source={liveSource}/></div>}
                       </button>
                     </div>
                   </div>
@@ -1024,16 +1067,17 @@ export default function App() {
                 {/* ══ GLANCE ══ */}
                 {tab==="glance"&&(
                   <div className="fade">
-                    {ts&&<div style={{display:"inline-flex",alignItems:"center",gap:6,background:T.greenLight,color:T.green,borderRadius:20,padding:"4px 12px",fontSize:12,fontWeight:600,marginBottom:16}}>● Live data — {ts.dates?.length} days</div>}
+                    {isLive&&<div style={{display:"inline-flex",alignItems:"center",gap:6,marginBottom:16}}><LiveBadge source={liveSource}/><span style={{fontSize:12,color:T.muted}}>Charts generated from your live data</span></div>}
+                    {isDataset&&ts&&<div style={{display:"inline-flex",alignItems:"center",gap:6,background:T.blueLight,color:T.blue,borderRadius:20,padding:"4px 12px",fontSize:12,fontWeight:600,marginBottom:16}}>● Dataset — {ts.dates?.length} days</div>}
                     <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(auto-fit,minmax(220px,1fr))",gap:isMobile?12:16}}>
                       <Card>
                         <MetricLabel>❤️ Heart Rate</MetricLabel>
-                        <BigNum size={isMobile?24:28}>{data.profile?.avg_hr??72} <span style={{fontSize:13,fontWeight:400,color:T.muted}}>bpm</span></BigNum>
-                        <SubText>{Math.round((data.profile?.avg_hr??72)*0.65)} bpm Resting</SubText>
+                        <BigNum size={isMobile?24:28}>{displayData?.profile?.avg_hr??72} <span style={{fontSize:13,fontWeight:400,color:T.muted}}>bpm</span></BigNum>
+                        <SubText>{Math.round((displayData?.profile?.avg_hr??72)*0.65)} bpm Resting</SubText>
                         <div style={{marginTop:10,minHeight:48}}><SparkLine data={hrChart} color={T.red} h={48}/></div>
                       </Card>
                       <Card>
-                        <MetricLabel>⚡ Body Battery</MetricLabel>
+                        <MetricLabel>⚡ Body Charge</MetricLabel>
                         <div style={{display:"flex",justifyContent:"center",margin:"8px 0"}}>
                           <Ring pct={progress} color={progress>60?T.green:progress>30?T.amber:T.red} size={isMobile?70:80} stroke={8}>
                             <span style={{fontSize:isMobile?16:20,fontWeight:700}}>{progress}</span>
@@ -1046,18 +1090,17 @@ export default function App() {
                       </Card>
                       <Card>
                         <MetricLabel>😴 Sleep</MetricLabel>
-                        <BigNum size={isMobile?20:24}>{data.profile?.avg_sleep?`${Math.floor(data.profile.avg_sleep/60)}h ${Math.round(data.profile.avg_sleep%60)}m`:"6h 24m"}</BigNum>
+                        <BigNum size={isMobile?20:24}>{displayData?.profile?.avg_sleep?`${Math.floor(displayData.profile.avg_sleep/60)}h ${Math.round(displayData.profile.avg_sleep%60)}m`:"7h 0m"}</BigNum>
                         <SubText>Duration avg</SubText>
-                        <div style={{marginTop:10,minHeight:62}}><SparkBar data={sleepChart.slice(0,7)} color={T.purple} h={48} labels={chartLabels}/></div>
+                        <div style={{marginTop:10,minHeight:62}}><SparkBar data={sleepChart?.slice(0,7)} color={T.purple} h={48} labels={chartLabels}/></div>
                       </Card>
                       <Card>
                         <MetricLabel>💚 HRV Status</MetricLabel>
                         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
-                          <div style={{width:10,height:10,borderRadius:"50%",background:hrvColor}}/>
-                          <BigNum color={hrvColor} size={16}>{hrvStatus}</BigNum>
+                          <div style={{width:10,height:10,borderRadius:"50%",background:hrvColor}}/><BigNum color={hrvColor} size={16}>{hrvStatus}</BigNum>
                         </div>
-                        <BigNum size={isMobile?22:26}>{latestHrv7d!=null?latestHrv7d.toFixed(2):"—"} <span style={{fontSize:13,fontWeight:400,color:T.muted}}>RMSSD</span></BigNum>
-                        <SubText>7d Avg {ts?"(real data)":"(estimated)"}</SubText>
+                        <BigNum size={isMobile?22:26}>{latestHrv7d!=null?latestHrv7d.toFixed(2):isLive?(liveCoach.features?.HRV||2).toFixed(2):"—"} <span style={{fontSize:13,fontWeight:400,color:T.muted}}>RMSSD</span></BigNum>
+                        <SubText>7d Avg {isLive?"(live)":ts?"(real data)":"(estimated)"}</SubText>
                         <div style={{marginTop:10,minHeight:40}}><SparkLine data={hrvChart} color={hrvColor} h={40}/></div>
                       </Card>
                       <Card>
@@ -1078,21 +1121,21 @@ export default function App() {
                           <Ring pct={fat.pct} color={fat.color} size={60} stroke={7}>
                             <span style={{fontSize:14,fontWeight:700,color:fat.color}}>{fat.pct}</span>
                           </Ring>
-                          <div style={{flex:1,minHeight:48}}><SparkBar data={stressChart.slice(0,12)} color={fat.color} h={48}/></div>
+                          <div style={{flex:1,minHeight:48}}><SparkBar data={stressChart?.slice(0,12)} color={fat.color} h={48}/></div>
                         </div>
                       </Card>
                       <Card>
                         <MetricLabel>👟 Steps</MetricLabel>
-                        <BigNum size={isMobile?22:26}>{(data.profile?.avg_steps??7500).toLocaleString()}</BigNum>
+                        <BigNum size={isMobile?22:26}>{(displayData?.profile?.avg_steps??isLive?liveCoach.features?.TotalSteps??0:7500).toLocaleString()}</BigNum>
                         <SubText>Daily avg</SubText>
-                        <div style={{marginTop:10,minHeight:62}}><SparkBar data={stepsChart.slice(0,7)} color={T.blue} h={48} labels={chartLabels}/></div>
+                        <div style={{marginTop:10,minHeight:62}}><SparkBar data={stepsChart?.slice(0,7)} color={T.blue} h={48} labels={chartLabels}/></div>
                       </Card>
                       <Card style={{gridColumn:isMobile?"1":"span 2"}}>
                         <MetricLabel>🔥 Calories</MetricLabel>
-                        <BigNum size={isMobile?22:26}>{(data.profile?.avg_cal??2200).toLocaleString()} <span style={{fontSize:13,fontWeight:400,color:T.muted}}>kcal avg</span></BigNum>
-                        <div style={{minHeight:70,marginTop:10}}><SparkBar data={calChart.slice(0,7)} color={T.orange} h={56} labels={chartLabels}/></div>
+                        <BigNum size={isMobile?22:26}>{(displayData?.profile?.avg_cal??2200).toLocaleString()} <span style={{fontSize:13,fontWeight:400,color:T.muted}}>kcal avg</span></BigNum>
+                        <div style={{minHeight:70,marginTop:10}}><SparkBar data={calChart?.slice(0,7)} color={T.orange} h={56} labels={chartLabels}/></div>
                       </Card>
-                      {data.trends&&(
+                      {displayData?.trends&&(
                         <Card style={{gridColumn:isMobile?"1":"span 2"}}>
                           <MetricLabel>📈 Trends — Last 4W</MetricLabel>
                           <div style={{display:"flex",flexDirection:"column",gap:16}}>
@@ -1100,20 +1143,14 @@ export default function App() {
                               {key:"step_trend",icon:"👟",label:"Steps",max:600},
                               {key:"sleep_trend",icon:"😴",label:"Sleep",max:60},
                               {key:"hr_trend",icon:"❤️",label:"Heart Rate",max:20},
-                            ].filter(r=>data.trends[r.key]!=null).map(row=>{
-                              const v=data.trends[row.key],pos=v>0;
+                            ].filter(r=>displayData.trends[r.key]!=null).map(row=>{
+                              const v=displayData.trends[row.key],pos=v>0;
                               const tc=row.key==="hr_trend"?(pos?T.red:T.green):(pos?T.green:T.red);
                               return (
                                 <div key={row.key}>
                                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
-                                    <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                                      <span style={{fontSize:14}}>{row.icon}</span>
-                                      <span style={{fontSize:13,color:T.muted}}>{row.label}</span>
-                                    </div>
-                                    <div style={{display:"flex",gap:4,alignItems:"center"}}>
-                                      <span style={{color:tc,fontSize:12}}>{pos?"▲":"▼"}</span>
-                                      <span style={{fontSize:14,fontWeight:700,color:tc}}>{Math.abs(v).toFixed(2)}</span>
-                                    </div>
+                                    <div style={{display:"flex",gap:8,alignItems:"center"}}><span style={{fontSize:14}}>{row.icon}</span><span style={{fontSize:13,color:T.muted}}>{row.label}</span></div>
+                                    <div style={{display:"flex",gap:4,alignItems:"center"}}><span style={{color:tc,fontSize:12}}>{pos?"▲":"▼"}</span><span style={{fontSize:14,fontWeight:700,color:tc}}>{Math.abs(v).toFixed(2)}</span></div>
                                   </div>
                                   <div style={{background:T.border,borderRadius:4,height:6}}>
                                     <div style={{width:`${Math.min(Math.abs(v)/row.max*100,100)}%`,height:"100%",background:tc,borderRadius:4,transition:"width 1s ease"}}/>
@@ -1145,32 +1182,16 @@ export default function App() {
                           {recovery.risk&&<Pill color={riskColor(recovery.risk)} bg={riskColor(recovery.risk)+"18"}>{recovery.risk} Risk</Pill>}
                         </div>
                         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:isMobile?10:16,marginBottom:isMobile?16:24}}>
-                          <Card accent={fatigueInfo(recovery.fatigue).color}>
-                            <MetricLabel>Fatigue</MetricLabel>
-                            <BigNum color={fatigueInfo(recovery.fatigue).color} size={isMobile?20:28}>{fatigueInfo(recovery.fatigue).label}</BigNum>
-                          </Card>
-                          <Card accent={T.blue}>
-                            <MetricLabel>Progress</MetricLabel>
-                            <BigNum color={T.blue} size={isMobile?20:28}>{progress}%</BigNum>
-                          </Card>
-                          <Card accent={hc}>
-                            <MetricLabel>Recovery Index</MetricLabel>
-                            <BigNum color={hc} size={isMobile?20:28}>{recovery.recovery_index??"—"}</BigNum>
-                          </Card>
+                          <Card accent={fatigueInfo(recovery.fatigue).color}><MetricLabel>Fatigue</MetricLabel><BigNum color={fatigueInfo(recovery.fatigue).color} size={isMobile?20:28}>{fatigueInfo(recovery.fatigue).label}</BigNum></Card>
+                          <Card accent={T.blue}><MetricLabel>Progress</MetricLabel><BigNum color={T.blue} size={isMobile?20:28}>{progress}%</BigNum></Card>
+                          <Card accent={hc}><MetricLabel>Recovery Index</MetricLabel><BigNum color={hc} size={isMobile?20:28}>{recovery.recovery_index??"—"}</BigNum></Card>
                         </div>
                         <SectionLabel>Your Personalised Plan</SectionLabel>
                         <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr 1fr":"repeat(auto-fit,minmax(160px,1fr))",gap:isMobile?10:12,marginBottom:isMobile?16:24}}>
                           {(recovery.plan||[]).map((item,i)=>{
                             const isRest=item.toLowerCase().includes("rest"),isLight=item.toLowerCase().includes("light");
-                            const dc=isRest?T.blue:isLight?T.amber:T.green;
-                            const di=isRest?"🛌":isLight?"🚶":"🏃";
-                            return (
-                              <Card key={i} accent={dc}>
-                                <div style={{fontSize:10,color:T.muted,marginBottom:4,textTransform:"uppercase",letterSpacing:1}}>Day {i+1}</div>
-                                <div style={{fontSize:14,marginBottom:4}}>{di}</div>
-                                <div style={{fontSize:isMobile?11:13,color:T.text,lineHeight:1.4}}>{item}</div>
-                              </Card>
-                            );
+                            const dc=isRest?T.blue:isLight?T.amber:T.green,di=isRest?"🛌":isLight?"🚶":"🏃";
+                            return <Card key={i} accent={dc}><div style={{fontSize:10,color:T.muted,marginBottom:4,textTransform:"uppercase",letterSpacing:1}}>Day {i+1}</div><div style={{fontSize:14,marginBottom:4}}>{di}</div><div style={{fontSize:isMobile?11:13,color:T.text,lineHeight:1.4}}>{item}</div></Card>;
                           })}
                         </div>
                         <Card accent={T.green}>
@@ -1218,12 +1239,10 @@ export default function App() {
                           <MetricLabel>Action Plan</MetricLabel>
                           {(goal.plan||[]).map((step,i)=>{
                             const icons=["💤","🗓️","🚶","💧","🧘","🏋️","📊","🎯"];
-                            return (
-                              <div key={i} style={{display:"flex",gap:10,padding:"10px 0",borderBottom:i<goal.plan.length-1?`1px solid ${T.border}`:"none",alignItems:"flex-start"}}>
-                                <div style={{width:28,height:28,borderRadius:"50%",background:T.blueLight,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,flexShrink:0}}>{icons[i%icons.length]}</div>
-                                <div style={{fontSize:13,color:T.muted,paddingTop:4,lineHeight:1.5}}>{step}</div>
-                              </div>
-                            );
+                            return <div key={i} style={{display:"flex",gap:10,padding:"10px 0",borderBottom:i<goal.plan.length-1?`1px solid ${T.border}`:"none",alignItems:"flex-start"}}>
+                              <div style={{width:28,height:28,borderRadius:"50%",background:T.blueLight,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,flexShrink:0}}>{icons[i%icons.length]}</div>
+                              <div style={{fontSize:13,color:T.muted,paddingTop:4,lineHeight:1.5}}>{step}</div>
+                            </div>;
                           })}
                         </Card>
                         {goal.explanation?.length>0&&(
@@ -1236,7 +1255,7 @@ export default function App() {
                         )}
                         {!showFeedback
                           ?<button onClick={()=>setShowFeedback(true)} style={{width:"100%",background:T.card,border:`1px solid ${T.border}`,borderRadius:8,padding:13,color:T.muted,fontSize:13,fontWeight:500,cursor:"pointer"}}>📝 Give Feedback on this Goal</button>
-                          :<FeedbackWidget userId={selectedDatasetUser} goalName={goal.goal} onDone={()=>setShowFeedback(false)}/>}
+                          :<FeedbackWidget userId={selectedDatasetUser||authUser.id} goalName={goal.goal} onDone={()=>setShowFeedback(false)}/>}
                       </>
                     )}
                   </div>
@@ -1247,9 +1266,7 @@ export default function App() {
         </div>
       </div>
 
-      {isMobile&&(
-        <MobileBottomNav tab={tab} setTab={setTab} onRecovery={fetchRecovery} onGoal={fetchGoal} recovery={recovery} goal={goal}/>
-      )}
+      {isMobile&&<MobileBottomNav tab={tab} setTab={setTab} onRecovery={fetchRecovery} onGoal={fetchGoal}/>}
     </>
   );
 }
