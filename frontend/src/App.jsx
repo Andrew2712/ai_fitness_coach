@@ -536,14 +536,15 @@ export default function App() {
   const [animScore,setAnimScore]   = useState(0);
   const [sidebarOpen,setSidebarOpen] = useState(true);
 
-  // Dataset selection always takes priority over live data
-  const isDataset = !!data && !!selectedDatasetUser;
-  const isLive = !isDataset && (fitbitConnected || stravaConnected) && !!liveCoach;
-  const hasData = isDataset || isLive;
+  // Data source logic — dataset always wins when selected
   const liveSource = fitbitConnected ? "fitbit" : stravaConnected ? "strava" : null;
+  const isDataset = !!selectedDatasetUser;  // true as soon as user picks a dataset
+  const isLive = !isDataset && (fitbitConnected || stravaConnected) && !!liveCoach;
+  // Show dashboard when: loading a dataset OR live data available OR data loaded
+  const hasData = isDataset || isLive || !!data || !!liveCoach;
 
-  // Dataset wins when selected, otherwise use live
-  const displayData = isDataset ? data : isLive ? {
+  // Display data — prefer dataset, fallback to live
+  const displayData = data ? data : isLive ? {
     health:   liveCoach.health,
     progress: liveCoach.progress,
     risk:     liveCoach.risk,
