@@ -198,7 +198,7 @@ function WelcomeScreen({ authUser, fitbitConnected, stravaConnected, datasetUser
   const isMobile = useIsMobile();
   return (
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"70vh",gap:24,padding:isMobile?"16px":"40px",textAlign:"center"}}>
-      <div style={{width:72,height:72,borderRadius:20,background:T.blue,display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,fontWeight:900,color:"#fff"}}>A</div>
+      <img src="/acoach_logo.png" style={{width:72,height:72,borderRadius:20,objectFit:"cover"}}/>
       <div>
         <div style={{fontSize:isMobile?24:32,fontWeight:800,color:T.text,fontFamily:"'Nunito Sans',system-ui",marginBottom:8}}>Welcome, {authUser.username}! 👋</div>
         <div style={{fontSize:15,color:T.muted,maxWidth:480}}>Connect your fitness tracker or select a dataset to get started with your personalised AI coaching dashboard.</div>
@@ -424,7 +424,7 @@ function AuthPage({ onLogin }) {
           </svg>
           <div style={{position:"relative",textAlign:"left",maxWidth:380}}>
             <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:40}}>
-              <div style={{width:52,height:52,borderRadius:16,background:T.blue,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,fontWeight:900,color:"#fff"}}>A</div>
+              <img src="/acoach_logo.png" style={{width:52,height:52,borderRadius:16,objectFit:"cover"}}/>
               <div>
                 <div style={{fontFamily:"'Nunito Sans',system-ui",fontSize:24,fontWeight:800,color:"#fff",letterSpacing:2}}>ACOACH</div>
                 <div style={{fontSize:11,color:"#94a3b8",letterSpacing:1.5}}>AI FITNESS INTELLIGENCE</div>
@@ -445,7 +445,7 @@ function AuthPage({ onLogin }) {
         <div style={{width:"100%",maxWidth:380}}>
           {isMobile&&(
             <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:32,justifyContent:"center"}}>
-              <div style={{width:44,height:44,borderRadius:14,background:T.blue,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#fff"}}>A</div>
+              <img src="/acoach_logo.png" style={{width:44,height:44,borderRadius:14,objectFit:"cover"}}/>
               <div><div style={{fontFamily:"'Nunito Sans',system-ui",fontSize:20,fontWeight:800,color:T.text,letterSpacing:2}}>ACOACH</div><div style={{fontSize:10,color:T.muted,letterSpacing:1.5}}>AI FITNESS INTELLIGENCE</div></div>
             </div>
           )}
@@ -725,7 +725,7 @@ export default function App() {
           <div style={{width:sidebarOpen?220:64,background:T.sidebar,flexShrink:0,display:"flex",flexDirection:"column",transition:"width 0.2s ease",position:"sticky",top:0,height:"100vh",overflow:"hidden"}}>
             <div style={{padding:"20px 16px 16px",borderBottom:"1px solid #ffffff12"}}>
               <div style={{display:"flex",alignItems:"center",gap:10}}>
-                <div style={{width:36,height:36,borderRadius:10,background:T.blue,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:800,color:"#fff",flexShrink:0}}>A</div>
+                <img src="/acoach_logo.png" style={{width:36,height:36,borderRadius:10,flexShrink:0,objectFit:"cover"}}/>
                 {sidebarOpen&&<div><div style={{fontFamily:"'Nunito Sans',system-ui",fontSize:16,fontWeight:800,color:"#fff",letterSpacing:1.5}}>ACOACH</div><div style={{fontSize:10,color:"#64748b",letterSpacing:1}}>FITNESS AI</div></div>}
               </div>
             </div>
@@ -787,7 +787,7 @@ export default function App() {
             {!isMobile?(
               <button onClick={()=>setSidebarOpen(v=>!v)} style={{width:32,height:32,borderRadius:8,border:`1px solid ${T.border}`,background:"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,color:T.muted}}>☰</button>
             ):(
-              <div style={{width:32,height:32,borderRadius:10,background:T.blue,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:800,color:"#fff",flexShrink:0}}>A</div>
+              <img src="/acoach_logo.png" style={{width:32,height:32,borderRadius:10,flexShrink:0,objectFit:"cover"}}/>
             )}
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:isMobile?15:18,fontWeight:700,color:T.text,fontFamily:"'Nunito Sans',system-ui"}}>{tabTitle}</div>
