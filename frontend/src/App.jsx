@@ -206,24 +206,24 @@ function WelcomeScreen({ authUser, fitbitConnected, stravaConnected, datasetUser
 
       <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:16,width:"100%",maxWidth:600}}>
         {/* Connect Fitbit */}
-        <Card accent={fitbitConnected?T.green:T.blue} style={{textAlign:"left",cursor:"pointer"}} onClick={onConnectFitbit}>
+        <div style={{background:T.card,borderRadius:12,border:`1px solid ${T.border}`,borderTop:`3px solid ${fitbitConnected?T.green:T.blue}`,padding:"20px",boxShadow:"0 1px 4px rgba(0,0,0,0.06)",textAlign:"left"}}>
           <div style={{fontSize:28,marginBottom:10}}>⌚</div>
           <div style={{fontSize:16,fontWeight:700,color:T.text,marginBottom:4}}>Fitbit</div>
-          <div style={{fontSize:12,color:T.muted,marginBottom:12}}>Sync steps, sleep, heart rate and HRV from your Fitbit device</div>
+          <div style={{fontSize:12,color:T.muted,marginBottom:16}}>Sync steps, sleep, heart rate and HRV from your Fitbit device</div>
           {fitbitConnected
             ? <Pill color={T.green} bg={T.greenLight}>✓ Connected</Pill>
-            : <button style={{background:T.blue,border:"none",borderRadius:8,padding:"8px 16px",color:"#fff",fontSize:12,fontWeight:600,cursor:"pointer"}}>Connect Fitbit</button>}
-        </Card>
+            : <button onClick={onConnectFitbit} style={{background:T.blue,border:"none",borderRadius:8,padding:"9px 18px",color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer"}}>Connect Fitbit</button>}
+        </div>
 
         {/* Connect Strava */}
-        <Card accent={stravaConnected?T.strava:T.border} style={{textAlign:"left",cursor:"pointer"}} onClick={onConnectStrava}>
+        <div style={{background:T.card,borderRadius:12,border:`1px solid ${T.border}`,borderTop:`3px solid ${stravaConnected?T.strava:T.border}`,padding:"20px",boxShadow:"0 1px 4px rgba(0,0,0,0.06)",textAlign:"left"}}>
           <div style={{fontSize:28,marginBottom:10}}><StravaIcon size={28}/></div>
           <div style={{fontSize:16,fontWeight:700,color:T.text,marginBottom:4}}>Strava</div>
-          <div style={{fontSize:12,color:T.muted,marginBottom:12}}>Sync running, cycling activities, pace, elevation and training load</div>
+          <div style={{fontSize:12,color:T.muted,marginBottom:16}}>Sync running, cycling activities, pace, elevation and training load</div>
           {stravaConnected
             ? <Pill color={T.strava} bg={T.stravaLight}>✓ Connected</Pill>
-            : <button style={{background:T.strava,border:"none",borderRadius:8,padding:"8px 16px",color:"#fff",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}><StravaIcon size={14} color="#fff"/>Connect Strava</button>}
-        </Card>
+            : <button onClick={onConnectStrava} style={{background:T.strava,border:"none",borderRadius:8,padding:"9px 18px",color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6}}><StravaIcon size={14} color="#fff"/>Connect Strava</button>}
+        </div>
       </div>
 
       {/* Or use dataset */}
@@ -232,18 +232,18 @@ function WelcomeScreen({ authUser, fitbitConnected, stravaConnected, datasetUser
           <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
             <div style={{flex:1,height:1,background:T.border}}/><span style={{fontSize:12,color:T.muted}}>or explore with sample data</span><div style={{flex:1,height:1,background:T.border}}/>
           </div>
-          <Card>
+          <div style={{background:T.card,borderRadius:12,border:`1px solid ${T.border}`,padding:"16px",boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
             <MetricLabel>SELECT A SAMPLE DATASET USER</MetricLabel>
             <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap"}}>
               {datasetUsers.slice(0,6).map(u=>(
                 <button key={u} onClick={()=>onSelectDataset(u)}
-                  style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:8,padding:"6px 14px",fontSize:12,color:T.muted,cursor:"pointer",fontFamily:"system-ui"}}>
+                  style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:8,padding:"7px 16px",fontSize:12,color:T.text,cursor:"pointer",fontFamily:"system-ui",fontWeight:500}}>
                   #{String(u).slice(-4)}
                 </button>
               ))}
               {datasetUsers.length>6&&<span style={{fontSize:12,color:T.subtle,padding:"6px 0"}}>+{datasetUsers.length-6} more</span>}
             </div>
-          </Card>
+          </div>
         </div>
       )}
     </div>
@@ -639,13 +639,14 @@ export default function App() {
   };
 
   const fetchReport=async uid=>{
-    setErr("");setData(null);setTs(null);setRecovery(null);setGoal(null);setLoading(true);
+    if(!uid)return;
+    setErr("");setData(null);setTs(null);setRecovery(null);setGoal(null);setLoading(true);setTab("home");
     try{
       const [coachRes,tsRes]=await Promise.all([fetch(`${API_URL}/coach/${uid}`),fetch(`${API_URL}/timeseries/${uid}`)]);
       if(!coachRes.ok)throw new Error(`Error ${coachRes.status}`);
-      setData(await coachRes.json());
+      const coachData=await coachRes.json();
+      setData(coachData);
       if(tsRes.ok)setTs(await tsRes.json());
-      setTab("home");
     }catch(e){setErr(e.message);}finally{setLoading(false);}
   };
 
