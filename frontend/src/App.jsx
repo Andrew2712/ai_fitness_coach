@@ -79,7 +79,7 @@ function useIsMobile() {
 
 // ── Build chart arrays from live pipeline data ─────────────────────────────────
 function buildLiveCharts(liveCoach, stravaData) {
-  if (!liveCoach) return null;
+  if (!liveCoach || !liveCoach.features) return null;
   const f = liveCoach.features || {};
   const p = liveCoach.profile || {};
   const week = stravaData?.week || {};
@@ -837,16 +837,16 @@ export default function App() {
 
           {/* Main content */}
           <div style={{flex:1,padding:isMobile?"16px":"24px",overflowY:"auto",paddingBottom:isMobile?80:24}}>
-            {/* Loading */}
-            {(loading||(liveLoading&&!selectedDatasetUser))&&(
+            {/* Show spinner only when fetching dataset */}
+            {loading&&(
               <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"50vh",gap:12}}>
                 <div style={{width:40,height:40,borderRadius:"50%",border:`3px solid ${T.border}`,borderTopColor:T.blue,animation:"spin 0.8s linear infinite"}}/>
-                <div style={{fontSize:13,color:T.muted}}>{liveLoading&&!selectedDatasetUser?"Loading live data…":"Loading your data…"}</div>
+                <div style={{fontSize:13,color:T.muted}}>Loading your data…</div>
               </div>
             )}
 
-            {/* Welcome screen — show when no data at all */}
-            {!hasData&&!loading&&tab==="home"&&(
+            {/* Welcome screen — only when no dataset selected and no live data */}
+            {!loading&&!selectedDatasetUser&&!data&&!liveCoach&&tab==="home"&&(
               <WelcomeScreen
                 authUser={authUser}
                 fitbitConnected={fitbitConnected}
@@ -858,8 +858,8 @@ export default function App() {
               />
             )}
 
-            {/* Dashboard content */}
-            {hasData&&!loading&&(displayData||!liveLoading)&&(
+            {/* Dashboard content — show when data loaded (dataset or live) */}
+            {!loading&&displayData&&(
               <>
                 {/* ══ HOME ══ */}
                 {tab==="home"&&(
@@ -908,7 +908,7 @@ export default function App() {
                         <BigNum size={isMobile?18:24}>
                           {displayData?.profile?.avg_sleep
                             ?`${Math.floor(displayData.profile.avg_sleep/60)}h ${Math.round(displayData.profile.avg_sleep%60)}m`
-                            :isLive?`${Math.floor((liveCoach.features?.TotalMinutesAsleep||420)/60)}h ${(liveCoach.features?.TotalMinutesAsleep||420)%60}m`
+                            :isLive?`${Math.floor((liveCoach?.features?.TotalMinutesAsleep||420)/60)}h ${(liveCoach?.features?.TotalMinutesAsleep||420)%60}m`
                             :"—"}
                         </BigNum>
                         <SubText>{(displayData?.profile?.avg_sleep??420)<420?"Need more sleep.":"Sleep on track."}</SubText>
@@ -921,7 +921,7 @@ export default function App() {
                           <div style={{width:8,height:8,borderRadius:"50%",background:hrvColor}}/>
                           <BigNum color={hrvColor} size={isMobile?16:22}>{hrvStatus}</BigNum>
                         </div>
-                        <SubText>{latestHrv7d!=null?latestHrv7d.toFixed(2)+" RMSSD":isLive?`${liveCoach.features?.HRV||2} RMSSD`:"No data"}</SubText>
+                        <SubText>{latestHrv7d!=null?latestHrv7d.toFixed(2)+" RMSSD":isLive?`${liveCoach?.features?.HRV||2} RMSSD`:"No data"}</SubText>
                       </Card>
                     </div>
 
@@ -1034,9 +1034,9 @@ export default function App() {
                     <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr 1fr":"repeat(4,1fr)",gap:isMobile?10:16,marginBottom:isMobile?16:24}}>
                       {[
                         {label:"Heart Rate",val:`${displayData?.profile?.avg_hr??72}`,unit:"bpm",chart:<SparkLine data={hrChart} color={T.red} h={32}/>},
-                        {label:"Sleep",val:`${displayData?.profile?.avg_sleep?Math.floor(displayData.profile.avg_sleep/60):isLive?Math.floor((liveCoach.features?.TotalMinutesAsleep||420)/60):6}h`,unit:"Duration",chart:<SparkBar data={sleepChart?.slice(0,7)} color={T.purple} h={32}/>},
-                        {label:"HRV",val:latestHrv7d?latestHrv7d.toFixed(0)+" ms":isLive?`${(liveCoach.features?.HRV||2).toFixed(1)} ms`:"—",unit:"7d Avg",chart:<SparkLine data={hrvChart} color={hrvColor} h={32}/>},
-                        {label:"Steps",val:(displayData?.profile?.avg_steps??isLive?liveCoach.features?.TotalSteps??0:7500).toLocaleString(),unit:"daily avg",chart:<SparkBar data={stepsChart?.slice(0,7)} color={T.blue} h={32}/>},
+                        {label:"Sleep",val:`${displayData?.profile?.avg_sleep?Math.floor(displayData.profile.avg_sleep/60):isLive?Math.floor((liveCoach?.features?.TotalMinutesAsleep||420)/60):6}h`,unit:"Duration",chart:<SparkBar data={sleepChart?.slice(0,7)} color={T.purple} h={32}/>},
+                        {label:"HRV",val:latestHrv7d?latestHrv7d.toFixed(0)+" ms":isLive?`${(liveCoach?.features?.HRV||2).toFixed(1)} ms`:"—",unit:"7d Avg",chart:<SparkLine data={hrvChart} color={hrvColor} h={32}/>},
+                        {label:"Steps",val:(displayData?.profile?.avg_steps ?? (isLive ? (liveCoach?.features?.TotalSteps ?? 0) : 7500)).toLocaleString(),unit:"daily avg",chart:<SparkBar data={stepsChart?.slice(0,7)} color={T.blue} h={32}/>},
                       ].map(m=>(
                         <Card key={m.label}>
                           <MetricLabel>{m.label}</MetricLabel>
@@ -1101,7 +1101,7 @@ export default function App() {
                         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
                           <div style={{width:10,height:10,borderRadius:"50%",background:hrvColor}}/><BigNum color={hrvColor} size={16}>{hrvStatus}</BigNum>
                         </div>
-                        <BigNum size={isMobile?22:26}>{latestHrv7d!=null?latestHrv7d.toFixed(2):isLive?(liveCoach.features?.HRV||2).toFixed(2):"—"} <span style={{fontSize:13,fontWeight:400,color:T.muted}}>RMSSD</span></BigNum>
+                        <BigNum size={isMobile?22:26}>{latestHrv7d!=null?latestHrv7d.toFixed(2):isLive?(liveCoach?.features?.HRV||2).toFixed(2):"—"} <span style={{fontSize:13,fontWeight:400,color:T.muted}}>RMSSD</span></BigNum>
                         <SubText>7d Avg {isLive?"(live)":ts?"(real data)":"(estimated)"}</SubText>
                         <div style={{marginTop:10,minHeight:40}}><SparkLine data={hrvChart} color={hrvColor} h={40}/></div>
                       </Card>
@@ -1128,7 +1128,7 @@ export default function App() {
                       </Card>
                       <Card>
                         <MetricLabel>👟 Steps</MetricLabel>
-                        <BigNum size={isMobile?22:26}>{(displayData?.profile?.avg_steps??isLive?liveCoach.features?.TotalSteps??0:7500).toLocaleString()}</BigNum>
+                        <BigNum size={isMobile?22:26}>{(displayData?.profile?.avg_steps ?? (isLive ? (liveCoach?.features?.TotalSteps ?? 0) : 7500)).toLocaleString()}</BigNum>
                         <SubText>Daily avg</SubText>
                         <div style={{marginTop:10,minHeight:62}}><SparkBar data={stepsChart?.slice(0,7)} color={T.blue} h={48} labels={chartLabels}/></div>
                       </Card>
