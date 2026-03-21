@@ -536,14 +536,14 @@ export default function App() {
   const [animScore,setAnimScore]   = useState(0);
   const [sidebarOpen,setSidebarOpen] = useState(true);
 
-  // Determine current data source
-  const isLive = (fitbitConnected || stravaConnected) && liveCoach;
-  const isDataset = !!data;
-  const hasData = isLive || isDataset;
+  // Dataset selection always takes priority over live data
+  const isDataset = !!data && !!selectedDatasetUser;
+  const isLive = !isDataset && (fitbitConnected || stravaConnected) && !!liveCoach;
+  const hasData = isDataset || isLive;
   const liveSource = fitbitConnected ? "fitbit" : stravaConnected ? "strava" : null;
 
-  // Build display data from either live or dataset
-  const displayData = isLive ? {
+  // Dataset wins when selected, otherwise use live
+  const displayData = isDataset ? data : isLive ? {
     health:   liveCoach.health,
     progress: liveCoach.progress,
     risk:     liveCoach.risk,
@@ -552,10 +552,10 @@ export default function App() {
     trends:   liveCoach.trends,
     forecast: "Performance likely stable.",
     insight:  "Based on your live activity data.",
-  } : data;
+  } : null;
 
   // Build charts from live or dataset
-  const liveCharts = isLive ? buildLiveCharts(liveCoach, stravaData) : null;
+  const liveCharts = (isLive && !isDataset) ? buildLiveCharts(liveCoach, stravaData) : null;
   const dayL=["M","T","W","T","F","S","S"];
 
   const hrChart    = liveCharts?.hr24   || (ts?.hr?.length     ? ts.hr       : seeded(12345,24,58,140));
