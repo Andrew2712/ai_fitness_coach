@@ -263,7 +263,3 @@ The trained model is saved to `models/fitness_model.pkl` and the feature schema 
 - [ ] Garmin and Apple Health integrations
 
 ---
-
-## 📄 License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
